@@ -1,0 +1,4 @@
+V104.05.01 — Authorization Foundation
+STATUS=CLOSED
+SCOPE=Authorization foundation contracts, models, deterministic default-deny evaluation, service boundary, tests and documentation.
+NEXT=V104.05.02 — Authorization Rules

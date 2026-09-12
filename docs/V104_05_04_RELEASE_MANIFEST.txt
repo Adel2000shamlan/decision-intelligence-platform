@@ -1,0 +1,15 @@
+V104.05.04 RELEASE MANIFEST
+Resource Authorization
+
+Includes:
+- resource authorization domain model and resolver
+- existence/lifecycle, tenant, type, ownership policies
+- deterministic resource policy engine
+- integration into AuthorizationPolicyEngine and AuthorizationService
+- tests and DoD
+
+Verification target:
+- pytest
+- compileall
+- static DoD
+- ZIP integrity

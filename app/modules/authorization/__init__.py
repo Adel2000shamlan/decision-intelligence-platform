@@ -1,0 +1,1 @@
+"""Authorization bounded context foundation."""

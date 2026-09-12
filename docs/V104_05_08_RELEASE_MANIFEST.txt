@@ -1,0 +1,4 @@
+V104.05.08
+STATUS=CLOSED
+SOURCE=V104.05.05
+TEST=tests/test_v104_05_08_authorization_services.py

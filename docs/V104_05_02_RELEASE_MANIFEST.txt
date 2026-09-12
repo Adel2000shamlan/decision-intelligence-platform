@@ -1,0 +1,4 @@
+VERSION=V104.05.02
+NAME=Authorization Rules
+STATUS=CLOSED
+NEXT=V104.05.03 — Authorization Policy Engine
