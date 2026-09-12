@@ -24,11 +24,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
 
-    - name: Configure Poetry and Install dependencies
+    - name: Install all dependencies including dev tools
       run: |
         poetry config virtualenvs.create false
-        poetry install --no-interaction --no-root
+        poetry install --with dev --no-interaction --no-root
 
     - name: Run tests with pytest
       run: |
-        python -m pytest
+        poetry run pytest
