@@ -17,17 +17,18 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
 
-    - name: Install Poetry via pip
+    - name: Install Poetry
       run: |
         python -m pip install --upgrade pip
         pip install poetry
 
-    - name: Install project dependencies with Poetry
+    - name: Configure Poetry and Install dependencies
       run: |
+        poetry config virtualenvs.create false
         poetry install --no-interaction --no-root
 
-    - name: Run tests within Poetry Virtual Environment
+    - name: Run tests with pytest
       run: |
-        poetry run python -m pytest
+        python -m pytest
