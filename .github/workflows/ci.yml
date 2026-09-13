@@ -29,6 +29,6 @@ jobs:
         poetry config virtualenvs.create false
         poetry install --no-interaction --no-root
 
-    - name: Run tests with pytest
+    - name: Run tests with pytest module
       run: |
-        poetry run pytest
+        python -m pytest
