@@ -19,10 +19,10 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install Poetry
+    - name: Install Poetry and Pytest
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install poetry pytest
 
     - name: Install all project dependencies
       run: |
