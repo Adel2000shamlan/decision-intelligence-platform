@@ -4,6 +4,7 @@ from uuid import uuid4
 from app.core.store import store
 from app.modules.project.api.router import router as project_router
 from app.shared.domain.state_machine import transition
+from app.shared.domain.errors import InvalidStateTransition
 from app.shared.domain.services import RiskScoreService
 router=APIRouter(prefix='/api/v1')
 class CreateModel(BaseModel): name:str=Field(min_length=1,max_length=200)
@@ -21,12 +22,24 @@ def project(x:CreateModel):
     p={'id':str(uuid4()),'name':x.name,'status':'draft','version':1}; return store.add('projects',p)
 @router.post('/decisions')
 def decision(x:DecisionIn):
-    d={'id':str(uuid4()),**x.model_dump(),'status':'draft','options':[],'scenarios':[],'risks':[]}; return store.add('decisions',d)
+    d={'id':str(uuid4()),**x.model_dump(),'status':'draft','version':1,'options':[],'scenarios':[],'risks':[]}; return store.add('decisions',d)
+@router.get('/decisions/{id}')
+def get_decision(id:str):
+    d = store.get('decisions', id)
+    if not d:
+        raise HTTPException(404, 'decision not found')
+    return d
+
 @router.post('/decisions/{id}/transition')
 def decision_transition(id:str,target:str):
     d=store.get('decisions',id)
     if not d: raise HTTPException(404,'decision not found')
-    d['status']=transition('decision',d['status'],target); d['version']+=1; return d
+    try:
+        d['status']=transition('decision',d['status'],target)
+    except InvalidStateTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    d['version']+=1
+    return d
 @router.post('/risks')
 def risk(x:RiskIn):
     r={'id':str(uuid4()),**x.model_dump(),'score':RiskScoreService().calculate(x.probability,x.impact),'status':'identified'}; return store.add('risks',r)
