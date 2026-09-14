@@ -42,3 +42,51 @@ def test_get_decision_not_found():
 
     assert response.status_code == 404
     assert response.json()['detail'] == 'decision not found'
+
+def test_decision_full_lifecycle():
+    p = c.post(
+        '/api/v1/projects',
+        json={'name': 'Lifecycle Project'}
+    ).json()
+
+    d = c.post(
+        '/api/v1/decisions',
+        json={
+            'project_id': p['id'],
+            'title': 'Lifecycle Decision',
+            'objective': 'Verify full decision lifecycle'
+        }
+    ).json()
+
+    decision_id = d['id']
+    assert d['status'] == 'draft'
+    assert d['version'] == 1
+
+    for target, expected_version in [
+        ('validated', 2),
+        ('submitted', 3),
+        ('approved', 4),
+        ('active', 5),
+        ('completed', 6),
+        ('archived', 7),
+    ]:
+        response = c.post(
+            f'/api/v1/decisions/{decision_id}/transition',
+            params={'target': target}
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result['status'] == target
+        assert result['version'] == expected_version
+
+    response = c.post(
+        f'/api/v1/decisions/{decision_id}/transition',
+        params={'target': 'active'}
+    )
+
+    assert response.status_code == 409
+
+    result = c.get(f'/api/v1/decisions/{decision_id}').json()
+    assert result['status'] == 'archived'
+    assert result['version'] == 7
