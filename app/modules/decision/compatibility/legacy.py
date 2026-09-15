@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum
 
 from app.modules.decision.domain.models import DecisionStatus
+from app.modules.decision.application.commands import CreateDecision
 from app.shared.domain.errors import InvalidDomainData
 
 
@@ -140,6 +141,8 @@ class LegacyMigrationDisposition(str, Enum):
     REQUIRES_EXISTING_MIGRATION = "requires_existing_migration"
     BLOCKED = "blocked"
     UNSUPPORTED = "unsupported"
+    CREATE = "create"
+    LINK = "link"
 
 
 @dataclass(frozen=True)
@@ -497,3 +500,57 @@ def migrate_legacy_decision(
         official_id=official_id,
         official_status=official_status,
     )
+
+
+@dataclass(frozen=True)
+class LegacyMigrationResult:
+    legacy_id: str
+    disposition: LegacyMigrationDisposition
+    official_status: DecisionStatus
+    payload: object
+    official_id: UUID | None = None
+
+
+def migrate_legacy_result(
+    legacy_id: str,
+    organization_id: UUID | None,
+    project_id: UUID | None,
+    title: str,
+    objective: str,
+    description: str,
+    legacy_status: str | LegacyDecisionStatus,
+    legacy_version: int | None = None,
+    official_id: UUID | None = None,
+    official_status: DecisionStatus | None = None,
+) -> LegacyMigrationResult:
+    result = migrate_legacy_decision(
+        legacy_id=legacy_id,
+        organization_id=organization_id,
+        project_id=project_id,
+        title=title,
+        objective=objective,
+        description=description,
+        legacy_status=legacy_status,
+        legacy_version=legacy_version,
+        official_id=official_id,
+        official_status=official_status,
+    )
+
+    if isinstance(result, CreateDecision):
+        return LegacyMigrationResult(
+            legacy_id=legacy_id,
+            disposition=LegacyMigrationDisposition.CREATE,
+            official_status=DecisionStatus.DRAFT,
+            payload=result,
+        )
+
+    if isinstance(result, LegacyMigrationLink):
+        return LegacyMigrationResult(
+            legacy_id=result.legacy_id,
+            disposition=LegacyMigrationDisposition.LINK,
+            official_status=result.official_status,
+            payload=result,
+            official_id=result.official_id,
+        )
+
+    raise InvalidDomainData("unsupported legacy migration result")
