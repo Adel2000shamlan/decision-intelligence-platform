@@ -190,3 +190,46 @@ def evaluate_migration_policy(
         official_status=official_status,
         reason="legacy decision requires an existing official decision before state migration",
     )
+
+
+@dataclass(frozen=True)
+class LegacyMigrationPlan:
+    legacy_id: str
+    disposition: LegacyMigrationDisposition
+    action: str
+    official_status: DecisionStatus | None
+    reason: str
+
+
+def build_migration_plan(
+    legacy_id: str,
+    status: str | LegacyDecisionStatus,
+    organization_id: UUID | None,
+) -> LegacyMigrationPlan:
+    if not isinstance(legacy_id, str) or not legacy_id.strip():
+        raise ValueError("legacy_id is required")
+
+    policy = evaluate_migration_policy(
+        status=status,
+        organization_id=organization_id,
+    )
+
+    if policy.disposition is LegacyMigrationDisposition.MIGRATABLE:
+        action = "create_official_decision"
+    elif (
+        policy.disposition
+        is LegacyMigrationDisposition.REQUIRES_EXISTING_MIGRATION
+    ):
+        action = "link_existing_official_decision"
+    elif policy.disposition is LegacyMigrationDisposition.UNSUPPORTED:
+        action = "reject_migration"
+    else:
+        action = "block_migration"
+
+    return LegacyMigrationPlan(
+        legacy_id=legacy_id.strip(),
+        disposition=policy.disposition,
+        action=action,
+        official_status=policy.official_status,
+        reason=policy.reason,
+    )
