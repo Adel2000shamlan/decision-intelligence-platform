@@ -71,3 +71,16 @@ def test_adapter_rejects_link_result_without_executing_it():
         assert "CREATE" in str(exc)
 
     assert service.list() == []
+
+
+def test_adapter_rejects_non_migration_result():
+    service = DecisionApplicationService.in_memory()
+    adapter = LegacyDecisionApplicationAdapter(service)
+
+    try:
+        adapter.execute(object())
+        assert False, "adapter must reject invalid migration result type"
+    except TypeError as exc:
+        assert "LegacyMigrationResult" in str(exc)
+
+    assert service.list() == []
