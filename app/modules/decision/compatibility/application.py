@@ -11,6 +11,11 @@ from app.modules.decision.compatibility.legacy import (
 
 
 class LegacyDecisionApplicationAdapter:
+    """Explicit execution boundary from legacy migration to the official application layer.
+
+    Migration produces a result only; it never executes an official decision implicitly.
+    Only a validated CREATE result carrying a CreateDecision command may be executed.
+    """
     def __init__(self, application_service: DecisionApplicationService):
         self.application_service = application_service
 
