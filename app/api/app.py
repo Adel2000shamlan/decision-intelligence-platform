@@ -14,9 +14,6 @@ def organization(x:CreateModel):
     o={'id':str(uuid4()),'name':x.name,'status':'active','version':1}; return store.add('organizations',o)
 @router.get('/organizations')
 def organizations(): return store.list('organizations')
-@router.post('/projects')
-def project(x:CreateModel):
-    p={'id':str(uuid4()),'name':x.name,'status':'draft','version':1}; return store.add('projects',p)
 @router.post('/risks')
 def risk(x:RiskIn):
     r={'id':str(uuid4()),**x.model_dump(),'score':RiskScoreService().calculate(x.probability,x.impact),'status':'identified'}; return store.add('risks',r)
