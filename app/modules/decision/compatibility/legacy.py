@@ -366,3 +366,49 @@ def validate_migration_consistency(
         )
 
     return True
+
+
+def migrate_legacy_draft(
+    legacy_id: str,
+    organization_id: UUID | None,
+    project_id: UUID | None,
+    title: str,
+    objective: str,
+    description: str,
+    status: str | LegacyDecisionStatus,
+    legacy_version: int | None = None,
+):
+    validated = validate_migration_input(
+        legacy_id=legacy_id,
+        organization_id=organization_id,
+        project_id=project_id,
+        title=title,
+        objective=objective,
+        status=status,
+    )
+
+    if validated.official_status is not DecisionStatus.DRAFT:
+        raise InvalidDomainData(
+            "only legacy draft decisions can use the new official creation path"
+        )
+
+    if not isinstance(description, str) or not description.strip():
+        raise InvalidDomainData("explicit official description is required")
+
+    if legacy_version is not None and legacy_version < 1:
+        raise InvalidDomainData("legacy_version must be >= 1")
+
+    migration = LegacyDecisionMigration(
+        legacy_id=validated.legacy_id,
+        organization_id=validated.organization_id,
+        project_id=validated.project_id,
+        title=validated.title,
+        objective=validated.objective,
+        official_status=validated.official_status,
+        version=legacy_version,
+    )
+
+    return to_create_command(
+        migration,
+        description=description,
+    )
