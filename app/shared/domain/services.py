@@ -37,12 +37,6 @@ class DomainServiceBase:
             elif getattr(entity, 'version', None) != expected_version:
                 raise BusinessRuleViolation('optimistic concurrency conflict')
 
-class RiskScoreService:
-    def calculate(self, probability, impact):
-        if not 0 <= probability <= 1 or impact < 0:
-            raise BusinessRuleViolation('invalid risk inputs')
-        return probability * impact
-
 class DecisionReadinessService:
     def evaluate(self, decision):
         required=('objective','options','scenarios','risks')
