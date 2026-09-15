@@ -133,3 +133,60 @@ def to_create_command(
         description=description.strip(),
         actor_id=actor_id,
     )
+
+
+class LegacyMigrationDisposition(str, Enum):
+    MIGRATABLE = "migratable"
+    REQUIRES_EXISTING_MIGRATION = "requires_existing_migration"
+    BLOCKED = "blocked"
+    UNSUPPORTED = "unsupported"
+
+
+@dataclass(frozen=True)
+class LegacyMigrationPolicyResult:
+    disposition: LegacyMigrationDisposition
+    official_status: DecisionStatus | None
+    reason: str
+
+
+def evaluate_migration_policy(
+    status: str | LegacyDecisionStatus,
+    organization_id: UUID | None,
+) -> LegacyMigrationPolicyResult:
+    if organization_id is None:
+        return LegacyMigrationPolicyResult(
+            disposition=LegacyMigrationDisposition.BLOCKED,
+            official_status=None,
+            reason="organization_id is required for migration",
+        )
+
+    if not isinstance(organization_id, UUID):
+        return LegacyMigrationPolicyResult(
+            disposition=LegacyMigrationDisposition.BLOCKED,
+            official_status=None,
+            reason="organization_id must be UUID",
+        )
+
+    try:
+        official_status = to_official_status(status)
+    except InvalidDomainData as exc:
+        if str(status) == LegacyDecisionStatus.ARCHIVED.value:
+            return LegacyMigrationPolicyResult(
+                disposition=LegacyMigrationDisposition.UNSUPPORTED,
+                official_status=None,
+                reason=str(exc),
+            )
+        raise
+
+    if official_status is DecisionStatus.DRAFT:
+        return LegacyMigrationPolicyResult(
+            disposition=LegacyMigrationDisposition.MIGRATABLE,
+            official_status=official_status,
+            reason="legacy draft can be created as a new official decision",
+        )
+
+    return LegacyMigrationPolicyResult(
+        disposition=LegacyMigrationDisposition.REQUIRES_EXISTING_MIGRATION,
+        official_status=official_status,
+        reason="legacy decision requires an existing official decision before state migration",
+    )
