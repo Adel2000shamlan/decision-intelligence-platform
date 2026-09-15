@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.modules.decision.application.implementation import (
     DecisionApplicationService,
 )
+from app.modules.decision.application.commands import CreateDecision
 from app.modules.decision.compatibility.legacy import (
     LegacyMigrationDisposition,
     LegacyMigrationResult,
@@ -23,6 +24,8 @@ class LegacyDecisionApplicationAdapter:
             )
 
         command = result.payload
+        if not isinstance(command, CreateDecision):
+            raise TypeError("payload must be CreateDecision")
 
         return self.application_service.create(
             organization_id=command.organization_id,

@@ -1,3 +1,4 @@
+import pytest
 from uuid import uuid4
 
 from app.modules.decision.application.implementation import (
@@ -82,5 +83,33 @@ def test_adapter_rejects_non_migration_result():
         assert False, "adapter must reject invalid migration result type"
     except TypeError as exc:
         assert "LegacyMigrationResult" in str(exc)
+
+    assert service.list() == []
+
+def test_adapter_rejects_create_result_with_invalid_payload():
+    from app.modules.decision.compatibility.application import (
+        LegacyDecisionApplicationAdapter,
+    )
+    from app.modules.decision.compatibility.legacy import (
+        LegacyMigrationDisposition,
+        LegacyMigrationResult,
+    )
+    from app.modules.decision.application.implementation import (
+        DecisionApplicationService,
+    )
+    from app.modules.decision.domain.models import DecisionStatus
+
+    service = DecisionApplicationService.in_memory()
+    adapter = LegacyDecisionApplicationAdapter(service)
+
+    result = LegacyMigrationResult(
+        legacy_id="legacy-1",
+        disposition=LegacyMigrationDisposition.CREATE,
+        official_status=DecisionStatus.DRAFT,
+        payload=object(),
+    )
+
+    with pytest.raises(TypeError, match="CreateDecision"):
+        adapter.execute(result)
 
     assert service.list() == []
