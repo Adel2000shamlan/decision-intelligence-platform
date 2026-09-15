@@ -52,3 +52,56 @@ def can_migrate_status(status: str | LegacyDecisionStatus) -> bool:
     except InvalidDomainData:
         return False
     return True
+
+
+from dataclasses import dataclass
+from uuid import UUID
+
+
+@dataclass(frozen=True)
+class LegacyDecisionMigration:
+    legacy_id: str
+    organization_id: UUID
+    project_id: UUID
+    title: str
+    objective: str
+    official_status: DecisionStatus
+    version: int | None = None
+
+
+def build_legacy_migration(
+    legacy_id: str,
+    organization_id: UUID | None,
+    project_id: UUID,
+    title: str,
+    objective: str,
+    status: str | LegacyDecisionStatus,
+    version: int | None = None,
+) -> LegacyDecisionMigration:
+    if organization_id is None:
+        raise InvalidDomainData("organization_id is required")
+
+    if not isinstance(project_id, UUID):
+        raise InvalidDomainData("project_id must be UUID")
+
+    if not isinstance(title, str) or not title.strip():
+        raise InvalidDomainData("title is required")
+
+    if not isinstance(objective, str) or not objective.strip():
+        raise InvalidDomainData("objective is required")
+
+    if not isinstance(legacy_id, str) or not legacy_id.strip():
+        raise InvalidDomainData("legacy_id is required")
+
+    if version is not None and version < 1:
+        raise InvalidDomainData("version must be >= 1")
+
+    return LegacyDecisionMigration(
+        legacy_id=legacy_id.strip(),
+        organization_id=organization_id,
+        project_id=project_id,
+        title=title.strip(),
+        objective=objective.strip(),
+        official_status=to_official_status(status),
+        version=version,
+    )
