@@ -233,3 +233,59 @@ def build_migration_plan(
         official_status=policy.official_status,
         reason=policy.reason,
     )
+
+
+@dataclass(frozen=True)
+class LegacyMigrationInput:
+    legacy_id: str
+    organization_id: UUID
+    project_id: UUID
+    title: str
+    objective: str
+    official_status: DecisionStatus
+
+
+def validate_migration_input(
+    legacy_id: str,
+    organization_id: UUID | None,
+    project_id: UUID | None,
+    title: str,
+    objective: str,
+    status: str | LegacyDecisionStatus,
+) -> LegacyMigrationInput:
+    if not isinstance(legacy_id, str) or not legacy_id.strip():
+        raise InvalidDomainData("legacy_id is required")
+
+    if organization_id is None:
+        raise InvalidDomainData("organization_id is required")
+
+    if not isinstance(organization_id, UUID):
+        raise InvalidDomainData("organization_id must be UUID")
+
+    if project_id is None:
+        raise InvalidDomainData("project_id is required")
+
+    if not isinstance(project_id, UUID):
+        raise InvalidDomainData("project_id must be UUID")
+
+    if not isinstance(title, str) or not title.strip():
+        raise InvalidDomainData("title is required")
+
+    if not isinstance(objective, str) or not objective.strip():
+        raise InvalidDomainData("objective is required")
+
+    if str(status) == LegacyDecisionStatus.ARCHIVED.value:
+        raise InvalidDomainData(
+            "legacy decision status 'archived' is unsupported"
+        )
+
+    official_status = to_official_status(status)
+
+    return LegacyMigrationInput(
+        legacy_id=legacy_id.strip(),
+        organization_id=organization_id,
+        project_id=project_id,
+        title=title.strip(),
+        objective=objective.strip(),
+        official_status=official_status,
+    )
