@@ -289,3 +289,80 @@ def validate_migration_input(
         objective=objective.strip(),
         official_status=official_status,
     )
+
+
+@dataclass(frozen=True)
+class LegacyMigrationLink:
+    legacy_id: str
+    official_id: UUID
+    official_status: DecisionStatus
+
+
+def build_migration_link(
+    legacy_id: str,
+    official_id: UUID | None,
+    legacy_status: str | LegacyDecisionStatus,
+) -> LegacyMigrationLink:
+    if not isinstance(legacy_id, str) or not legacy_id.strip():
+        raise InvalidDomainData("legacy_id is required")
+
+    if official_id is None:
+        raise InvalidDomainData("official_id is required")
+
+    if not isinstance(official_id, UUID):
+        raise InvalidDomainData("official_id must be UUID")
+
+    try:
+        legacy_status_value = LegacyDecisionStatus(legacy_status)
+    except (ValueError, TypeError) as exc:
+        raise InvalidDomainData(
+            f"unsupported legacy decision status: {legacy_status!r}"
+        ) from exc
+
+    if legacy_status_value is LegacyDecisionStatus.ARCHIVED:
+        raise InvalidDomainData(
+            "legacy decision status 'archived' cannot be linked"
+        )
+
+    if legacy_status_value is LegacyDecisionStatus.DRAFT:
+        raise InvalidDomainData(
+            "legacy draft requires create path, not existing-decision link"
+        )
+
+    return LegacyMigrationLink(
+        legacy_id=legacy_id.strip(),
+        official_id=official_id,
+        official_status=to_official_status(legacy_status_value),
+    )
+
+
+def validate_migration_consistency(
+    legacy_status: str | LegacyDecisionStatus,
+    official_status: DecisionStatus | None,
+) -> bool:
+    if official_status is None:
+        raise InvalidDomainData("official_status is required")
+
+    if not isinstance(official_status, DecisionStatus):
+        raise InvalidDomainData("official_status must be DecisionStatus")
+
+    try:
+        legacy_status_value = LegacyDecisionStatus(legacy_status)
+    except (ValueError, TypeError) as exc:
+        raise InvalidDomainData(
+            f"unsupported legacy decision status: {legacy_status!r}"
+        ) from exc
+
+    if legacy_status_value is LegacyDecisionStatus.ARCHIVED:
+        raise InvalidDomainData(
+            "legacy decision status 'archived' is unsupported"
+        )
+
+    expected_status = to_official_status(legacy_status_value)
+
+    if expected_status is not official_status:
+        raise InvalidDomainData(
+            "status mismatch between legacy and official decision"
+        )
+
+    return True
