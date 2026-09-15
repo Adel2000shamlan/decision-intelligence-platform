@@ -412,3 +412,44 @@ def migrate_legacy_draft(
         migration,
         description=description,
     )
+
+
+def link_legacy_decision(
+    legacy_id: str,
+    legacy_status: str | LegacyDecisionStatus,
+    official_id: UUID | None,
+    official_status: DecisionStatus | None,
+) -> LegacyMigrationLink:
+    if official_id is None:
+        raise InvalidDomainData("official_id is required for existing-decision link")
+
+    if not isinstance(official_id, UUID):
+        raise InvalidDomainData("official_id must be UUID")
+
+    try:
+        legacy_status_value = LegacyDecisionStatus(legacy_status)
+    except (ValueError, TypeError) as exc:
+        raise InvalidDomainData(
+            f"unsupported legacy decision status: {legacy_status!r}"
+        ) from exc
+
+    if legacy_status_value is LegacyDecisionStatus.DRAFT:
+        raise InvalidDomainData(
+            "legacy draft requires create path, not existing-decision link"
+        )
+
+    if legacy_status_value is LegacyDecisionStatus.ARCHIVED:
+        raise InvalidDomainData(
+            "legacy decision status 'archived' is unsupported"
+        )
+
+    validate_migration_consistency(
+        legacy_status=legacy_status_value,
+        official_status=official_status,
+    )
+
+    return build_migration_link(
+        legacy_id=legacy_id,
+        official_id=official_id,
+        legacy_status=legacy_status_value,
+    )
