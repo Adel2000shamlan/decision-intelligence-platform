@@ -453,3 +453,47 @@ def link_legacy_decision(
         official_id=official_id,
         legacy_status=legacy_status_value,
     )
+
+
+def migrate_legacy_decision(
+    legacy_id: str,
+    organization_id: UUID | None,
+    project_id: UUID | None,
+    title: str,
+    objective: str,
+    description: str,
+    legacy_status: str | LegacyDecisionStatus,
+    legacy_version: int | None = None,
+    official_id: UUID | None = None,
+    official_status: DecisionStatus | None = None,
+):
+    try:
+        legacy_status_value = LegacyDecisionStatus(legacy_status)
+    except (ValueError, TypeError) as exc:
+        raise InvalidDomainData(
+            f"unsupported legacy decision status: {legacy_status!r}"
+        ) from exc
+
+    if legacy_status_value is LegacyDecisionStatus.DRAFT:
+        return migrate_legacy_draft(
+            legacy_id=legacy_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            title=title,
+            objective=objective,
+            description=description,
+            status=legacy_status_value,
+            legacy_version=legacy_version,
+        )
+
+    if legacy_status_value is LegacyDecisionStatus.ARCHIVED:
+        raise InvalidDomainData(
+            "legacy decision status 'archived' is unsupported"
+        )
+
+    return link_legacy_decision(
+        legacy_id=legacy_id,
+        legacy_status=legacy_status_value,
+        official_id=official_id,
+        official_status=official_status,
+    )
