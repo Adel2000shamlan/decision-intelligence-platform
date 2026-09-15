@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Decision Intelligence Platform">
+  <link rel="manifest" href="/api/v1/frontend/manifest.webmanifest">
+  <link rel="stylesheet" href="/api/v1/frontend/styles.css">
+  <title>Decision Intelligence Platform</title>
+</head>
+<body>
+  <main id="app" aria-label="Decision Intelligence Platform"></main>
+  <script src="/api/v1/frontend/app.js" defer></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/api/v1/frontend/service-worker.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
