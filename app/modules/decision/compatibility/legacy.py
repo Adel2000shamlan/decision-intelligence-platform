@@ -105,3 +105,31 @@ def build_legacy_migration(
         official_status=to_official_status(status),
         version=version,
     )
+
+
+def to_create_command(
+    migration: LegacyDecisionMigration,
+    *,
+    description: str | None = None,
+    actor_id: UUID | None = None,
+):
+    from app.modules.decision.application.commands import CreateDecision
+
+    if description is None or not isinstance(description, str) or not description.strip():
+        raise InvalidDomainData("explicit official description is required")
+
+    if not isinstance(migration, LegacyDecisionMigration):
+        raise InvalidDomainData("migration must be LegacyDecisionMigration")
+
+    if migration.official_status is not DecisionStatus.DRAFT:
+        raise InvalidDomainData(
+            "only legacy decisions mapped to official draft can be created as new official decisions"
+        )
+
+    return CreateDecision(
+        organization_id=migration.organization_id,
+        project_id=migration.project_id,
+        title=migration.title,
+        description=description.strip(),
+        actor_id=actor_id,
+    )
