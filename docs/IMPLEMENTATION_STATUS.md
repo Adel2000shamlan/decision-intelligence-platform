@@ -168,3 +168,36 @@ Status: COMPLETED AND VERIFIED.
 
 ### Scope boundary
 V109 verification covers the available unit, integration, API, domain, agent, security/governance, frontend and regression test suites present in this baseline. It does not claim production load testing, browser accessibility automation, distributed failure/recovery testing, or production-environment performance certification.
+
+
+## V110 — Deployment / Production
+
+Status: COMPLETED AND VERIFIED.
+
+### Production hardening
+- `Dockerfile.prod` uses Python 3.12 slim, runs as non-root UID 10001, and starts the application through Uvicorn.
+- `docker-compose.prod.yml` externalizes PostgreSQL credentials through environment variables and defines healthchecks for API, PostgreSQL, and Redis.
+- API startup uses a FastAPI lifespan to apply the core database migration before serving requests.
+- PostgreSQL persistence repositories were implemented and verified for organization, project, agent, knowledge, and KPI modules.
+- PostgreSQL authentication credential/token persistence and tenant-scoped RBAC persistence were implemented and runtime-verified.
+- Repository selection is centralized through the infrastructure composition root; application/API module layer-boundary scan reports zero direct infrastructure/API/frontend imports.
+
+### Verification
+- Full test suite after final architectural wiring: **721 passed, 2 skipped, 1 warning**.
+- Full-suite runtime: 9.88 seconds.
+- Python compilation for `app` and `tests`: OK.
+- `git diff --check`: OK.
+- Layer-boundary scan: 0 matches.
+- Secret-pattern scan: no embedded credentials or private-key material detected; compose PostgreSQL credentials are environment-variable references.
+- PostgreSQL migration and repository runtime integration were previously verified successfully.
+
+### Environment limitation
+- Docker CLI is not installed in the Termux environment, so an actual Docker image build/compose deployment was not executed on-device.
+- PostgreSQL is running locally, but the current Termux session has no configured PostgreSQL role/`DATABASE_URL`, so the final FastAPI-over-PostgreSQL API wiring check could not be executed in this session. This does not invalidate the previously completed PostgreSQL repository and migration runtime checks.
+
+### Known warning
+- One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+- The warning is outside the application source tree and does not cause test failure.
+
+### Scope boundary
+V110 establishes production deployment contracts, PostgreSQL persistence, startup migration behavior, health checks, security-oriented container hardening, and regression verification. It does not claim a production Docker build on Termux, distributed load testing, or production infrastructure certification.

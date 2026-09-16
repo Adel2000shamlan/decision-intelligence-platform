@@ -17,7 +17,7 @@ class Database:
             finally: conn.close()
         else:
             try: import psycopg
-            except ImportError as e: raise RuntimeError('PostgreSQL requires psycopg[binary] in the deployment environment') from e
+            except ImportError as e: raise RuntimeError('PostgreSQL requires psycopg 3 in the deployment environment') from e
             conn=psycopg.connect(self.url)
             try: yield conn; conn.commit()
             except Exception: conn.rollback(); raise

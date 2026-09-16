@@ -12,14 +12,24 @@ TABLES={
  'knowledge_items': 'CREATE TABLE IF NOT EXISTS knowledge_items(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,title TEXT NOT NULL,content TEXT NOT NULL,source TEXT NOT NULL,project_id TEXT,evidence_uri TEXT,created_at TEXT NOT NULL,version INTEGER NOT NULL)',
  'agents': 'CREATE TABLE IF NOT EXISTS agents(id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,name TEXT NOT NULL,capabilities TEXT NOT NULL,enabled INTEGER NOT NULL,created_at TEXT NOT NULL,UNIQUE(tenant_id,name))',
 }
+def _placeholder(conn):
+    return '%s' if type(conn).__module__.startswith('psycopg') else '?'
+
+def _execute(conn, sql, params=()):
+    if params:
+        sql = sql.replace('?', _placeholder(conn))
+        return conn.execute(sql, params)
+    return conn.execute(sql)
+
+
 def apply_initial(conn):
-    conn.execute('CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY,applied_at TEXT NOT NULL)')
-    for sql in TABLES.values(): conn.execute(sql)
+    _execute(conn, 'CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY,applied_at TEXT NOT NULL)')
+    for sql in TABLES.values(): _execute(conn, sql)
     for table in ('organizations','projects','decisions','options','scenarios','risks','executions','kpis','knowledge_items','agents'):
-        conn.execute(f'CREATE INDEX IF NOT EXISTS idx_{table}_tenant ON {table}(tenant_id)' if table not in ('projects','decisions','options','scenarios','risks','executions') else 'SELECT 1')
-    if conn.execute('SELECT 1 FROM schema_migrations WHERE version=?',(MIGRATION_ID,)).fetchone() is None:
-        conn.execute('INSERT INTO schema_migrations(version,applied_at) VALUES (?,?)',(MIGRATION_ID,datetime.now(timezone.utc).isoformat()))
+        _execute(conn, f'CREATE INDEX IF NOT EXISTS idx_{table}_tenant ON {table}(tenant_id)' if table not in ('projects','decisions','options','scenarios','risks','executions') else 'SELECT 1')
+    if _execute(conn, 'SELECT 1 FROM schema_migrations WHERE version=?',(MIGRATION_ID,)).fetchone() is None:
+        _execute(conn, 'INSERT INTO schema_migrations(version,applied_at) VALUES (?,?)',(MIGRATION_ID,datetime.now(timezone.utc).isoformat()))
 def rollback_initial(conn):
     # Rollback is explicit and destructive; callers must execute inside a transaction.
-    for t in reversed(tuple(TABLES)): conn.execute(f'DROP TABLE IF EXISTS {t}')
-    conn.execute('DELETE FROM schema_migrations WHERE version=?',(MIGRATION_ID,))
+    for t in reversed(tuple(TABLES)): _execute(conn, f'DROP TABLE IF EXISTS {t}')
+    _execute(conn, 'DELETE FROM schema_migrations WHERE version=?',(MIGRATION_ID,))
