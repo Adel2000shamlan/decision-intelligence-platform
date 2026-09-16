@@ -201,3 +201,42 @@ Status: COMPLETED AND VERIFIED.
 
 ### Scope boundary
 V110 establishes production deployment contracts, PostgreSQL persistence, startup migration behavior, health checks, security-oriented container hardening, and regression verification. It does not claim a production Docker build on Termux, distributed load testing, or production infrastructure certification.
+
+## V111 — MVP Launch
+
+Status: COMPLETED AND VERIFIED.
+
+### MVP launch foundation
+- Pilot onboarding lifecycle implemented with tenant-scoped participant management and explicit onboarding/activation states.
+- Feedback loop implemented with typed feedback, participant validation, tenant isolation, and active-participant enforcement.
+- MVP analytics foundation implemented with tenant-scoped events and KPI measurements.
+- Default measurable MVP KPIs defined for onboarding completion, weekly active pilot users, feedback submission rate, support first-response time, and critical incident rate.
+- Support process implemented with priority/status lifecycle and tenant-scoped ticket management.
+- Release checklist implemented with explicit release gates, evidence, failure reporting, and readiness enforcement.
+- Rollback plan implemented with explicit previous-release requirement and deployment callback boundary.
+- MVP launch control implemented with critical launch gates, readiness validation, release transition, and rollback transition.
+
+### Verification
+- Full pytest suite: **738 passed, 2 skipped, 1 warning**.
+- Full-suite runtime: **9.76 seconds**.
+- Python compilation for `app` and `tests`: OK.
+- `git diff --check`: OK.
+- Layer-boundary scan: **0 matches**.
+- V111-specific analytics, pilot, support, release, and launch tests passed.
+- Tenant isolation and validation rules are covered by the implemented application/domain tests.
+
+### Release and rollback controls
+- MVP release requires launch readiness gates to pass.
+- Critical launch gates are evaluated explicitly before release.
+- Release checklist requires all declared checklist gates to pass.
+- Rollback requires a declared previous release and is represented as an explicit controlled operation.
+- Sensitive business decisions remain outside autonomous agent approval.
+
+### Scope boundary
+V111 establishes the MVP launch control plane, pilot onboarding, feedback, analytics/KPI measurement foundation, support workflow, release checklist, rollback contract, and measurable launch gates.
+
+This closure does not claim a public production launch, external pilot completion, production-scale performance certification, real customer adoption metrics, or operational success outside the tested application boundary. Actual pilot results must be collected from real usage after deployment.
+
+### Known warning
+- One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+- The warning is outside the application source tree and does not cause test failure.
