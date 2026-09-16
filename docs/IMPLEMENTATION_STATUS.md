@@ -240,3 +240,36 @@ This closure does not claim a public production launch, external pilot completio
 ### Known warning
 - One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
 - The warning is outside the application source tree and does not cause test failure.
+
+## V112.01 — Forecasting & Simulation
+Status: COMPLETED AND VERIFIED.
+
+### Forecasting foundation
+- Explicit time-series observations implemented with tenant isolation.
+- Forecast requests require a configurable minimum observation count.
+- Deterministic rolling-mean baseline forecasting implemented.
+- Future observations are rejected.
+- Duplicate observations for the same tenant, metric, and timestamp are rejected.
+- Different metrics may share timestamps.
+- Identical metric timestamps remain isolated across tenants.
+- Invalid numeric and boolean inputs are rejected explicitly.
+
+### Simulation foundation
+- Explicit scenario variables and weights implemented.
+- Simulation requires at least one variable.
+- Simulation requires positive total variable weight.
+- Baseline and tenant inputs are validated.
+- Simulation results are explicitly marked as estimates.
+- No inferred or hidden input values are introduced.
+
+### Verification
+- Forecasting-specific suite: **13 passed**.
+- Full project suite: **751 passed, 2 skipped, 1 warning**.
+- Full-suite runtime: **9.03 seconds**.
+- Existing project tests remain green after V112.01 integration.
+
+### Scope boundary
+V112.01 provides a deterministic forecasting baseline and explicit weighted simulation foundation. It does not claim statistical model accuracy, production-scale forecasting performance, causal inference, or prediction of real-world outcomes without sufficient historical data.
+
+### Known warning
+- One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
