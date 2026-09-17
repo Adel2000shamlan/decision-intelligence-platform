@@ -68,7 +68,19 @@ Pilot onboarding, analytics, feedback loop, support process, release checklist, 
 - Verification: 40 passed, 10 skipped.
 - PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
 
+### V112.07 Enterprise Controls — COMPLETE
+- Revalidated the existing enterprise authorization-control framework originally implemented in V105 rather than creating a duplicate control layer.
+- Verified the complete ordered control registry from stage 11 through stage 100 (90 controls).
+- Verified full-pass evaluation reaches the master closure control.
+- Verified fail-closed short-circuit behavior on the first failed control.
+- Verified tenant isolation and cross-tenant denial.
+- Verified AI capability/tool boundaries and Human-in-the-Loop enforcement.
+- Verified authorization release-gate and master-closure behavior.
+- Dedicated V112 acceptance coverage: `tests/test_v112_07_enterprise_controls.py`.
+- Acceptance verification: 8 passed.
+- The existing V105 control suite remains part of the regression surface.
+
 ### V112 Remaining Scope
-Enterprise controls, marketplace/API, and white-label capabilities remain separate future capabilities unless explicitly implemented and verified.
+Marketplace/API and white-label capabilities remain separate future capabilities unless explicitly implemented and verified.
 
 V112 completion follows the project status rule: implementation + automated tests + acceptance evidence.
