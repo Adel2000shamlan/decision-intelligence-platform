@@ -37,8 +37,38 @@ Containers, managed PostgreSQL, HTTPS, secrets, CI/CD, migrations, monitoring, l
 Pilot onboarding, analytics, feedback loop, support process, release checklist, rollback and measurable MVP KPIs.
 
 ## V112 Advanced Platform
+
+### V112.01 Forecasting & Simulation — COMPLETE
+- Forecast observations, deterministic forecasting, simulation variables, and simulation results implemented.
+- Verification: included in the project test suite at completion of the stage.
+
+### V112.02 Knowledge Graph — COMPLETE
+- Knowledge graph domain, persistence, tenant isolation, and repository contracts implemented.
+- Verification: included in the project test suite at completion of the stage.
+
+### V112.03 Advanced Memory — COMPLETE
+- Advanced memory domain and persistence capabilities implemented with tenant-scoped access.
+- Verification: included in the project test suite at completion of the stage.
+
+### V112.04 Continuous Learning — COMPLETE
+- Learning observations, outcome tracking, variance analysis, and tenant-scoped persistence implemented.
+- Verification: included in the project test suite at completion of the stage.
+
 ### V112.05 Connectors — COMPLETE
 - Connector domain, repository, application service, provider contract, registry, generic HTTPS provider, tenant isolation, and SSRF protections implemented.
-- Verification: 873 passed, 21 skipped, 1 warning.
+- Verification at stage completion: 873 passed, 21 skipped, 1 warning.
 
-Forecasting, simulation, knowledge graph, advanced memory, continuous learning, connectors, enterprise controls, benchmarking, marketplace/API and white-label capabilities.
+### V112.06 Benchmarking — IMPLEMENTED / LOCAL VERIFICATION COMPLETE
+- Benchmark definitions and peer-group observations implemented.
+- Evidence-backed application boundary implemented using the canonical Evidence model.
+- Deterministic benchmark calculation with minimum-observation gates implemented.
+- SQLite and PostgreSQL persistence contracts implemented.
+- Tenant isolation enforced at the application and SQLite database schema levels.
+- Repository contract and mapper tests implemented.
+- Verification: 40 passed, 10 skipped.
+- PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
+
+### V112 Remaining Scope
+Enterprise controls, marketplace/API, and white-label capabilities remain separate future capabilities unless explicitly implemented and verified.
+
+V112 completion follows the project status rule: implementation + automated tests + acceptance evidence.
