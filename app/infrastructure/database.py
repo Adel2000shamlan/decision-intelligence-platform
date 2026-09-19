@@ -11,7 +11,7 @@ class Database:
     @contextmanager
     def transaction(self):
         if self.kind=='sqlite':
-            conn=sqlite3.connect(self.path); conn.execute('PRAGMA foreign_keys=ON')
+            conn=sqlite3.connect(self.path, check_same_thread=False); conn.execute('PRAGMA foreign_keys=ON')
             try: yield conn; conn.commit()
             except Exception: conn.rollback(); raise
             finally: conn.close()

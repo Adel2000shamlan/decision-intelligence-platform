@@ -76,6 +76,16 @@ class PostgreSQLOrganizationRepository:
             )
         return organization
 
+    def get_tenant_id(self, organization_id):
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT tenant_id FROM organizations WHERE id=%s",
+                (str(organization_id),),
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return UUID(row[0])
+
     def get_by_id(self, organization_id):
         with self._connect() as conn:
             row = conn.execute(
