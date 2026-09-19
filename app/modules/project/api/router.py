@@ -4,12 +4,10 @@ from uuid import UUID
 from app.modules.project.application.queries import ProjectQueryService
 from app.modules.project.application.commands import ProjectCommandHandler
 from app.modules.project.application.service import ProjectApplicationFacade
-from app.modules.project.persistence.sqlite import SQLiteProjectRepository
-from app.modules.project.application.repository import ProjectRepositoryAdapter
 
 router = APIRouter(prefix="/projects", tags=["projects"])
-_repo = ProjectRepositoryAdapter(SQLiteProjectRepository())
-_app = ProjectApplicationFacade(ProjectCommandHandler(_repo), ProjectQueryService(_repo))
+_repo = None
+_app = None
 
 def configure_repository(repository):
     global _repo, _app

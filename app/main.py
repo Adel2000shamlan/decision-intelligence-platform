@@ -9,7 +9,6 @@ from app.infrastructure.repository_factory import (
     create_project_repository,
     create_white_label_repository,
 )
-from app.api.app import router
 from app.api.security import security_headers_middleware
 from app.api.v1.router import api_router
 from app.modules.authentication.api import router as auth_router
@@ -131,7 +130,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(router)
 app.include_router(auth_router)
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(developer_router, prefix="/api/v1")

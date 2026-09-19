@@ -2,10 +2,9 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from app.modules.organization.application.service import OrganizationApplicationService
-from app.modules.organization.persistence.sqlite import SQLiteOrganizationRepository
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
-_service = OrganizationApplicationService(SQLiteOrganizationRepository())
+_service = None
 
 def configure_service(service):
     global _service
