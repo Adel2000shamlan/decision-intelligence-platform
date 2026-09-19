@@ -7,6 +7,7 @@ from app.infrastructure.migrations import apply_initial
 from app.infrastructure.repository_factory import (
     create_organization_repository,
     create_project_repository,
+    create_white_label_repository,
 )
 from app.api.app import router
 from app.api.security import security_headers_middleware
@@ -38,12 +39,29 @@ from app.modules.project.api.router import (
     configure_repository as configure_project_repository,
 )
 from app.modules.risk.api import router as risk_router
+from app.modules.authorization.domain.authorization_services import (
+    build_authorization_services,
+)
+from app.modules.white_label.api import (
+    configure_service as configure_white_label_service,
+    router as white_label_router,
+)
+from app.modules.white_label.application.service import (
+    WhiteLabelApplicationService,
+)
+import importlib
 
 
 @asynccontextmanager
 async def lifespan(app):
     with Database().transaction() as conn:
         apply_initial(conn)
+
+        if type(conn).__module__.startswith("sqlite3"):
+            white_label_migration = importlib.import_module(
+                "app.migrations.112_09_001_white_label"
+            )
+            white_label_migration.apply(conn)
 
         organization_repository = create_organization_repository()
         project_repository = create_project_repository()
@@ -52,6 +70,27 @@ async def lifespan(app):
             OrganizationApplicationService(organization_repository)
         )
         configure_project_repository(project_repository)
+
+        white_label_authorization = build_authorization_services(
+            policies=(
+                ExplicitPermissionPolicy(
+                    frozenset(
+                        {
+                            "organization:read",
+                            "organization:create",
+                            "organization:update",
+                        }
+                    )
+                ),
+            ),
+        )
+
+        white_label_service = WhiteLabelApplicationService(
+            repository=create_white_label_repository(conn),
+            organization_repository=organization_repository,
+            authorization=white_label_authorization,
+        )
+        configure_white_label_service(white_label_service)
 
         developer_service = DeveloperService(
             create_developer_repository(conn)
@@ -97,4 +136,5 @@ app.include_router(auth_router)
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(developer_router, prefix="/api/v1")
 app.include_router(developer_resource_router, prefix="/api/v1")
+app.include_router(white_label_router, prefix="/api/v1")
 app.middleware("http")(security_headers_middleware)

@@ -65,3 +65,15 @@ def create_kpi_repository():
     from app.modules.kpi.persistence.repository import KPIRepository
 
     return KPIRepository()
+
+def create_white_label_repository(connection):
+    if is_postgresql():
+        from app.modules.white_label.persistence.postgres import (
+            PostgreSQLWhiteLabelRepository,
+        )
+        return PostgreSQLWhiteLabelRepository(connection)
+
+    from app.modules.white_label.persistence.sqlite import (
+        SQLiteWhiteLabelRepository,
+    )
+    return SQLiteWhiteLabelRepository(connection)
