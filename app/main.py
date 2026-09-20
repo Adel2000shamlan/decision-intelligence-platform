@@ -7,6 +7,8 @@ from app.infrastructure.migrations import apply_initial
 from app.infrastructure.repository_factory import (
     create_organization_repository,
     create_project_repository,
+    create_decision_repository,
+    create_risk_repository,
     create_white_label_repository,
 )
 from app.api.security import security_headers_middleware
@@ -29,15 +31,22 @@ from app.modules.authorization.domain.models import ExplicitPermissionPolicy
 from app.modules.developer.authorization.resource_resolver import (
     DeveloperResourceResolver,
 )
-from app.modules.decision.api import router as decision_router
+from app.modules.decision.api.router import (
+    router as decision_router,
+    configure_service as configure_decision_service,
+)
 from app.modules.organization.api.router import (
     configure_service as configure_organization_service,
 )
 from app.modules.organization.application.service import OrganizationApplicationService
+from app.modules.decision.application.implementation import DecisionApplicationService
 from app.modules.project.api.router import (
     configure_repository as configure_project_repository,
 )
-from app.modules.risk.api import router as risk_router
+from app.modules.risk.api.router import (
+    router as risk_router,
+    configure_repository as configure_risk_repository,
+)
 from app.modules.authorization.domain.authorization_services import (
     build_authorization_services,
 )
@@ -64,11 +73,18 @@ async def lifespan(app):
 
         organization_repository = create_organization_repository()
         project_repository = create_project_repository()
+        decision_repository = create_decision_repository()
+        risk_repository = create_risk_repository()
 
         configure_organization_service(
             OrganizationApplicationService(organization_repository)
         )
         configure_project_repository(project_repository)
+
+        configure_decision_service(
+            DecisionApplicationService.from_repository(decision_repository)
+        )
+        configure_risk_repository(risk_repository)
 
         white_label_authorization = build_authorization_services(
             policies=(
@@ -99,8 +115,8 @@ async def lifespan(app):
         resource_resolver = DeveloperResourceResolver(
             organization_repository=organization_repository,
             project_repository=project_repository,
-            decision_repository=decision_router._app.repository,
-            risk_repository=risk_router._repo,
+            decision_repository=decision_repository,
+            risk_repository=risk_repository,
         )
 
         developer_authorization = DeveloperAuthorizationService.create(

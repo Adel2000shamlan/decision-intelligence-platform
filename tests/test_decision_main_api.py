@@ -1,14 +1,18 @@
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 
-client = TestClient(app)
+@pytest.fixture
+def client():
+    with TestClient(app) as client:
+        yield client
 
 
-def test_main_app_exposes_official_decision_api():
+def test_main_app_exposes_official_decision_api(client):
     actor_id = uuid4()
 
     response = client.post(
@@ -29,7 +33,7 @@ def test_main_app_exposes_official_decision_api():
     assert result["version"] == 1
     assert result["title"] == "Main App Official Decision"
 
-def test_main_app_integrates_official_organization_project_decision_risk():
+def test_main_app_integrates_official_organization_project_decision_risk(client):
     organization = client.post(
         "/api/v1/organizations",
         json={"name": "Integration Organization", "slug": f"integration-{uuid4().hex[:8]}"},

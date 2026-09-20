@@ -13,6 +13,11 @@ router = APIRouter(prefix="/decisions", tags=["decisions"])
 _app = DecisionApplicationService.in_memory()
 
 
+def configure_service(service):
+    global _app
+    _app = service
+
+
 class DecisionCreateRequest(BaseModel):
     organization_id: UUID
     project_id: UUID

@@ -77,3 +77,27 @@ def create_white_label_repository(connection):
         SQLiteWhiteLabelRepository,
     )
     return SQLiteWhiteLabelRepository(connection)
+
+
+def create_decision_repository():
+    if is_postgresql():
+        from app.modules.decision.persistence.postgres import (
+            PostgreSQLDecisionRepository,
+        )
+        return PostgreSQLDecisionRepository(settings.database_url)
+
+    from app.modules.decision.in_memory import InMemoryDecisionRepository
+
+    return InMemoryDecisionRepository()
+
+
+def create_risk_repository():
+    if is_postgresql():
+        from app.modules.risk.persistence.postgres import (
+            PostgreSQLRiskRepository,
+        )
+        return PostgreSQLRiskRepository(settings.database_url)
+
+    from app.modules.risk.in_memory import InMemoryRiskRepository
+
+    return InMemoryRiskRepository()

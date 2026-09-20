@@ -30,6 +30,17 @@ _uow = RiskUnitOfWork(_repo, DefaultRiskFactory(), RiskPolicyService())
 _handler = RiskCommandHandler(_uow)
 
 
+def configure_repository(repository):
+    global _repo, _uow, _handler
+    _repo = repository
+    _uow = RiskUnitOfWork(
+        repository,
+        DefaultRiskFactory(),
+        RiskPolicyService(),
+    )
+    _handler = RiskCommandHandler(_uow)
+
+
 class RiskCreateRequest(BaseModel):
     project_id: UUID
     title: str = Field(min_length=1, max_length=300)

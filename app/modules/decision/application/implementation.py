@@ -27,14 +27,17 @@ class DecisionApplicationService:
     commands: DecisionCommandHandler
 
     @classmethod
-    def in_memory(cls) -> "DecisionApplicationService":
-        repository = InMemoryDecisionRepository()
+    def from_repository(cls, repository) -> "DecisionApplicationService":
         uow = DecisionUnitOfWork(
             repository=repository,
             factory=DefaultDecisionFactory(),
             policy=DecisionPolicyService(),
         )
         return cls(DecisionCommandHandler(uow))
+
+    @classmethod
+    def in_memory(cls) -> "DecisionApplicationService":
+        return cls.from_repository(InMemoryDecisionRepository())
 
     @property
     def repository(self):
@@ -65,8 +68,10 @@ class DecisionApplicationService:
     def get(self, decision_id: UUID):
         return self.repository.get_by_id(decision_id)
 
-    def list(self):
-        return list(self.repository._items.values())
+    def list(self, organization_id: UUID | None = None):
+        if organization_id is None:
+            return self.repository.list_all()
+        return self.repository.list_by_organization(organization_id)
 
     def start_analysis(
         self,
