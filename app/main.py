@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.infrastructure.config import settings
 from app.infrastructure.database import Database
 from app.infrastructure.migrations import apply_initial
 from app.infrastructure.repository_factory import (
@@ -10,10 +11,17 @@ from app.infrastructure.repository_factory import (
     create_decision_repository,
     create_risk_repository,
     create_white_label_repository,
+    create_auth_repositories,
 )
 from app.api.security import security_headers_middleware
 from app.api.v1.router import api_router
-from app.modules.authentication.api import router as auth_router
+from app.modules.authentication.api import (
+    router as auth_router,
+    users as auth_users,
+    credentials as auth_credentials,
+    tokens as auth_tokens,
+    rbac as auth_rbac,
+)
 from app.modules.developer.api.config import create_developer_repository
 from app.modules.developer.api.resources import (
     configure_resource_authorization,
@@ -136,6 +144,13 @@ async def lifespan(app):
 
         configure_resource_authorization(developer_authorization)
         configure_resource_rate_controller(DeveloperRateController())
+
+        if settings.environment.lower() == "production":
+            auth_repositories = create_auth_repositories()
+            auth_users.configure(auth_repositories["users"])
+            auth_credentials.repo = auth_repositories["credential_repository"]
+            auth_tokens.repo = auth_repositories["token_repository"]
+            auth_rbac.configure(auth_repositories["rbac"])
 
         yield
 

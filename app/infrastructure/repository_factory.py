@@ -101,3 +101,30 @@ def create_risk_repository():
     from app.modules.risk.in_memory import InMemoryRiskRepository
 
     return InMemoryRiskRepository()
+
+
+def create_auth_repositories():
+    if is_postgresql():
+        from app.infrastructure.auth_postgres import (
+            PostgreSQLCredentialRepository,
+            PostgreSQLTokenRepository,
+        )
+        from app.infrastructure.authorization_postgres import PostgreSQLRBAC
+        from app.modules.identity.persistence.postgres import PostgreSQLUserRepository
+
+        return {
+            "users": PostgreSQLUserRepository(settings.database_url),
+            "credential_repository": PostgreSQLCredentialRepository(settings.database_url),
+            "token_repository": PostgreSQLTokenRepository(settings.database_url),
+            "rbac": PostgreSQLRBAC(settings.database_url),
+        }
+
+    from app.modules.identity.in_memory import InMemoryUserRepository
+    from app.modules.authentication.security import CredentialService, RBAC, TokenService
+
+    return {
+        "users": InMemoryUserRepository(),
+        "credential_repository": CredentialService().repo,
+        "token_repository": TokenService().repo,
+        "rbac": RBAC(),
+    }

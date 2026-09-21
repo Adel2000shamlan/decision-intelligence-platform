@@ -243,3 +243,10 @@ class PostgreSQLTokenRepository:
                 "UPDATE tokens SET revoked=1 WHERE token_hash=%s",
                 (key,),
             )
+
+    def revoke_session(self, session_id):
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE tokens SET revoked=1 WHERE session_id=%s",
+                (str(session_id),),
+            )

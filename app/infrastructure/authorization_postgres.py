@@ -70,6 +70,19 @@ class PostgreSQLRBAC:
                 (str(user_id), str(tenant_id), role),
             )
 
+    def roles_for(self, user_id, tenant_id):
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT role
+                FROM role_assignments
+                WHERE user_id=%s AND tenant_id=%s
+                ORDER BY role
+                """,
+                (str(user_id), str(tenant_id)),
+            ).fetchall()
+        return tuple(row[0] for row in rows)
+
     def permissions(self, user_id, tenant_id):
         result = set()
 
