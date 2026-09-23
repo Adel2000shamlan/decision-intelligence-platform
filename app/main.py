@@ -71,9 +71,9 @@ import importlib
 @asynccontextmanager
 async def lifespan(app):
     with Database().transaction() as conn:
-        apply_initial(conn)
 
         if type(conn).__module__.startswith("sqlite3"):
+            apply_initial(conn)
             white_label_migration = importlib.import_module(
                 "app.migrations.112_09_001_white_label"
             )
