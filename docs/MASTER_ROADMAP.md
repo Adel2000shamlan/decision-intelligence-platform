@@ -80,7 +80,26 @@ Pilot onboarding, analytics, feedback loop, support process, release checklist, 
 - Acceptance verification: 8 passed.
 - The existing V105 control suite remains part of the regression surface.
 
-### V112 Remaining Scope
-Marketplace/API and white-label capabilities remain separate future capabilities unless explicitly implemented and verified.
+### V112.08 Developer Platform — COMPLETE / LOCAL VERIFICATION COMPLETE
+- Developer application lifecycle, developer credentials, marketplace listings, authorization boundaries, resource resolution, credential security, secrets handling, and rate limiting implemented.
+- Marketplace/API capability is implemented within the Developer Platform, including listing creation and publication.
+- Tenant isolation and cross-tenant denial verified at the Developer Platform HTTP boundary.
+- Developer credentials require platform authentication and valid developer authentication before protected resource access.
+- Developer secrets are returned at credential creation but are not exposed by subsequent credential reads; secret hashes are not exposed through the API.
+- Rate limiting is enforced after developer credential authentication.
+- Dedicated end-to-end acceptance coverage: `tests/developer/test_v112_08_09_acceptance.py`.
+- Verification: 151 passed, 5 skipped, 1 warning.
+- PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
 
-V112 completion follows the project status rule: implementation + automated tests + acceptance evidence.
+### White-Label Platform Capability — COMPLETE / LOCAL VERIFICATION COMPLETE
+- White-label domain, persistence, application service, tenant-scoped access, and HTTP API capabilities implemented.
+- OpenAPI exposes GET, POST, PUT, and DELETE operations for the white-label configuration.
+- Authentication, tenant isolation, duplicate-configuration conflict handling, versioned updates, and strong authorization for deletion verified.
+- Dedicated HTTP acceptance coverage: `tests/white_label/test_v112_white_label_04_http.py`.
+- Verification: 50 passed, 5 skipped, 1 warning.
+- PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
+
+### V112 Completion Status
+V112 implementation scope covered by the current roadmap entries is complete and locally verified through implementation, automated tests, and acceptance evidence.
+
+The remaining verification gap is environmental rather than an unimplemented feature: PostgreSQL-backed integration tests for Developer Platform and White-Label require a configured DATABASE_URL and a reachable PostgreSQL environment.
