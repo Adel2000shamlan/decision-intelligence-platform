@@ -106,7 +106,7 @@ def listing_to_row(listing: MarketplaceListing) -> tuple:
         listing.name,
         listing.description,
         listing.capability,
-        int(listing.published),
+        listing.published,
         listing.created_at.isoformat(),
         listing.updated_at.isoformat(),
         listing.version,

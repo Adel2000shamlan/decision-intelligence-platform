@@ -117,13 +117,26 @@ def test_postgres_risk_assessment_and_residual_round_trip(repository):
     project_id = uuid4()
     decision_id = uuid4()
 
-    risk = make_assessed_risk(
+    risk = make_risk(
         marker,
         project_id=project_id,
         decision_id=decision_id,
+        title_suffix="Assessed",
+        description="Assessed persistent risk",
+        source=RiskSource.AI,
     )
 
     repo.save(risk)
+
+    risk.identify()
+    repo.save(risk)
+    risk.assess(4, 4)
+    repo.save(risk)
+    risk.start_mitigation()
+    repo.save(risk)
+    risk.monitor(2, 2)
+    repo.save(risk)
+
     loaded = repo.get_by_id(risk.id)
 
     assert loaded is not None

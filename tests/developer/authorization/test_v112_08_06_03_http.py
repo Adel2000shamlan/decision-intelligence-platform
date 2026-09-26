@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+import sqlite3
 
 import pytest
 from fastapi import HTTPException
@@ -12,7 +13,6 @@ from app.modules.developer.authorization.http import (
 )
 from app.modules.developer.domain.models import APIScope
 from app.modules.developer.persistence.sqlite import SQLiteDeveloperRepository
-from app.infrastructure.database import Database
 
 
 def _platform(tenant_id):
@@ -26,8 +26,11 @@ def _platform(tenant_id):
 
 @pytest.fixture
 def service():
-    with Database().transaction() as connection:
+    connection = sqlite3.connect(":memory:")
+    try:
         yield DeveloperService(SQLiteDeveloperRepository(connection))
+    finally:
+        connection.close()
 
 
 def _credential(service, tenant_id, client_id="http-client"):
