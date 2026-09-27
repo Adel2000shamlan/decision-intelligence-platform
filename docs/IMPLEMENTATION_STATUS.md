@@ -183,17 +183,17 @@ Status: COMPLETED AND VERIFIED.
 - Repository selection is centralized through the infrastructure composition root; application/API module layer-boundary scan reports zero direct infrastructure/API/frontend imports.
 
 ### Verification
-- Full test suite after final architectural wiring: **721 passed, 2 skipped, 1 warning**.
-- Full-suite runtime: 9.88 seconds.
+- Full PostgreSQL-enabled regression after production-readiness audit: **1189 passed, 1 warning**.
+- Full-suite PostgreSQL-enabled runtime: 44.63 seconds.
 - Python compilation for `app` and `tests`: OK.
 - `git diff --check`: OK.
 - Layer-boundary scan: 0 matches.
 - Secret-pattern scan: no embedded credentials or private-key material detected; compose PostgreSQL credentials are environment-variable references.
-- PostgreSQL migration and repository runtime integration were previously verified successfully.
+- PostgreSQL migration/repository runtime integration was re-verified successfully, including Decision and Risk repositories.
 
 ### Environment limitation
 - Docker CLI is not installed in the Termux environment, so an actual Docker image build/compose deployment was not executed on-device.
-- PostgreSQL is running locally, but the current Termux session has no configured PostgreSQL role/`DATABASE_URL`, so the final FastAPI-over-PostgreSQL API wiring check could not be executed in this session. This does not invalidate the previously completed PostgreSQL repository and migration runtime checks.
+- PostgreSQL is running locally in the Termux environment and the production configuration was verified with `APP_ENV=production` and a PostgreSQL `DATABASE_URL`. The FastAPI production lifespan and `/api/v1/health` endpoint were successfully exercised over PostgreSQL with HTTP 200. Docker image/compose deployment remains unverified because Docker CLI is not installed on-device.
 
 ### Known warning
 - One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
