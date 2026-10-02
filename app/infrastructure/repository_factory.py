@@ -66,6 +66,20 @@ def create_kpi_repository():
 
     return KPIRepository()
 
+
+def create_business_assessment_repository():
+    if is_postgresql():
+        from app.modules.business_assessment.persistence.postgres import (
+            PostgreSQLBusinessAssessmentRepository,
+        )
+        return PostgreSQLBusinessAssessmentRepository(settings.database_url)
+
+    from app.modules.business_assessment.persistence.sqlite import (
+        SQLiteBusinessAssessmentRepository,
+    )
+    return SQLiteBusinessAssessmentRepository()
+
+
 def create_white_label_repository(connection):
     if is_postgresql():
         from app.modules.white_label.persistence.postgres import (

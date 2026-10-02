@@ -10,6 +10,7 @@ from app.infrastructure.repository_factory import (
     create_project_repository,
     create_decision_repository,
     create_risk_repository,
+    create_business_assessment_repository,
     create_white_label_repository,
     create_auth_repositories,
 )
@@ -55,6 +56,10 @@ from app.modules.risk.api.router import (
     router as risk_router,
     configure_repository as configure_risk_repository,
 )
+from app.modules.business_assessment.api.router import (
+    router as business_assessment_router,
+    configure_repository as configure_business_assessment_repository,
+)
 from app.modules.authorization.domain.authorization_services import (
     build_authorization_services,
 )
@@ -83,6 +88,7 @@ async def lifespan(app):
         project_repository = create_project_repository()
         decision_repository = create_decision_repository()
         risk_repository = create_risk_repository()
+        business_assessment_repository = create_business_assessment_repository()
 
         configure_organization_service(
             OrganizationApplicationService(organization_repository)
@@ -93,6 +99,11 @@ async def lifespan(app):
             DecisionApplicationService.from_repository(decision_repository)
         )
         configure_risk_repository(risk_repository)
+
+        configure_business_assessment_repository(
+            business_assessment_repository,
+            organization_repository=organization_repository,
+        )
 
         white_label_authorization = build_authorization_services(
             policies=(
@@ -166,4 +177,5 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(developer_router, prefix="/api/v1")
 app.include_router(developer_resource_router, prefix="/api/v1")
 app.include_router(white_label_router, prefix="/api/v1")
+app.include_router(business_assessment_router, prefix="/api/v1")
 app.middleware("http")(security_headers_middleware)

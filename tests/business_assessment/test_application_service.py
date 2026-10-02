@@ -55,6 +55,26 @@ def test_create_through_facade():
     assert assessment.version == 1
 
 
+
+def test_create_rejects_cross_tenant_organization():
+    facade = make_facade()
+    organization_id = uuid4()
+    foreign_tenant_id = uuid4()
+    actor_id = uuid4()
+
+    try:
+        facade.create(
+            organization_id=organization_id,
+            title="اختبار عزل المستأجر",
+            actor_id=actor_id,
+            tenant_id=foreign_tenant_id,
+        )
+    except ValueError as exc:
+        assert "tenant" in str(exc).lower()
+    else:
+        raise AssertionError("cross-tenant create must be rejected")
+
+
 def test_get_is_tenant_scoped():
     facade = make_facade()
     organization_id = uuid4()

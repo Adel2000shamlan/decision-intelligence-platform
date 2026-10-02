@@ -48,6 +48,11 @@ class BusinessAssessmentApplicationFacade:
             idea_description,
         )
 
+        BusinessAssessmentApplicationValidator.validate_tenant(
+            organization_id,
+            tenant_id,
+        )
+
         return self.commands.create(
             CreateBusinessAssessment(
                 organization_id=organization_id,
