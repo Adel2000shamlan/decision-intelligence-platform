@@ -66,7 +66,7 @@ Pilot onboarding, analytics, feedback loop, support process, release checklist, 
 - Tenant isolation enforced at the application and SQLite database schema levels.
 - Repository contract and mapper tests implemented.
 - Verification: 40 passed, 10 skipped.
-- PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
+- PostgreSQL integration acceptance verified with configured DATABASE_URL; live PostgreSQL coverage passed in the final full-suite verification.
 
 ### V112.07 Enterprise Controls — COMPLETE
 - Revalidated the existing enterprise authorization-control framework originally implemented in V105 rather than creating a duplicate control layer.
@@ -89,7 +89,7 @@ Pilot onboarding, analytics, feedback loop, support process, release checklist, 
 - Rate limiting is enforced after developer credential authentication.
 - Dedicated end-to-end acceptance coverage: `tests/developer/test_v112_08_09_acceptance.py`.
 - Verification: 151 passed, 5 skipped, 1 warning.
-- PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
+- PostgreSQL integration acceptance verified with configured DATABASE_URL; live PostgreSQL coverage passed in the final full-suite verification.
 
 ### White-Label Platform Capability — COMPLETE / LOCAL VERIFICATION COMPLETE
 - White-label domain, persistence, application service, tenant-scoped access, and HTTP API capabilities implemented.
@@ -97,7 +97,7 @@ Pilot onboarding, analytics, feedback loop, support process, release checklist, 
 - Authentication, tenant isolation, duplicate-configuration conflict handling, versioned updates, and strong authorization for deletion verified.
 - Dedicated HTTP acceptance coverage: `tests/white_label/test_v112_white_label_04_http.py`.
 - Verification: 50 passed, 5 skipped, 1 warning.
-- PostgreSQL integration tests are currently skipped when DATABASE_URL is unavailable; live PostgreSQL acceptance remains an environment-dependent gate.
+- PostgreSQL integration acceptance verified with configured DATABASE_URL; live PostgreSQL coverage passed in the final full-suite verification.
 
 ### V112 Completion Status
 V112 implementation scope covered by the current roadmap entries is complete and locally verified through implementation, automated tests, and acceptance evidence.
