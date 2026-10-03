@@ -273,3 +273,21 @@ V112.01 provides a deterministic forecasting baseline and explicit weighted simu
 
 ### Known warning
 - One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+
+## V113.01 — Shared Event Integration Contract
+
+Status: COMPLETE
+
+Evidence:
+- V113.01 targeted tests: 13 passed
+- Full test suite: 1244 passed, 1 warning
+- git diff --check: passed
+
+Implementation:
+- app/shared/integration/events.py
+- app/shared/integration/__init__.py
+- tests/shared/test_event_integration.py
+
+The implementation bridges the existing DomainEventEnvelope contract to the
+existing infrastructure EventBus/EventStore while preserving transport-neutral
+domain events and idempotent event handling.

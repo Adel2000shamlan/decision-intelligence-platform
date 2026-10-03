@@ -103,3 +103,27 @@ Pilot onboarding, analytics, feedback loop, support process, release checklist, 
 V112 implementation scope covered by the current roadmap entries is complete and locally verified through implementation, automated tests, and acceptance evidence.
 
 The previously environment-dependent PostgreSQL verification gap was closed during the production-readiness audit: PostgreSQL-backed integration coverage was executed with a reachable PostgreSQL environment and configured DATABASE_URL, including Developer Platform and White-Label coverage.
+
+### V113.01 Shared Event Integration Contract — COMPLETE
+
+Implemented the shared domain-event integration bridge without replacing existing
+domain event queues or the infrastructure EventBus/EventStore.
+
+Implemented:
+- transport-neutral DomainEventEnvelope integration
+- EventBusDomainEventPublisher adapter
+- correlation, causation, actor, and tenant metadata propagation
+- aggregate type and aggregate version propagation
+- transport-safe payload serialization
+- event-idempotent EventStore publishing
+- compatibility with EventBus without requiring EventStore
+
+Acceptance evidence:
+- targeted integration/domain-event tests: 13 passed
+- full suite: 1244 passed, 1 warning
+- git diff --check: passed
+- no test failures or errors
+
+Architectural invariant preserved:
+Intelligence does not approve or execute decisions; the existing human approval
+and decision lifecycle remain authoritative.
