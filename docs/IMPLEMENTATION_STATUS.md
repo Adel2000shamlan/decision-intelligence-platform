@@ -291,3 +291,27 @@ Implementation:
 The implementation bridges the existing DomainEventEnvelope contract to the
 existing infrastructure EventBus/EventStore while preserving transport-neutral
 domain events and idempotent event handling.
+
+## V113.02 — Decision Intelligence Orchestrator
+
+Status: COMPLETE
+
+Implementation:
+- app/modules/intelligence/application/orchestrator.py
+- app/modules/intelligence/integration/learning_bridge.py
+- app/modules/intelligence/integration/memory_bridge.py
+- app/modules/intelligence/integration/__init__.py
+- tests/intelligence/test_v113_02_orchestrator.py
+- tests/intelligence/test_v113_02_learning_bridge.py
+- tests/intelligence/test_v113_02_memory_bridge.py
+
+Evidence:
+- V113.02 targeted tests: 20 passed
+- Full project suite: 1264 passed, 1 warning
+- Python compilation: passed
+- git diff --cached --check: passed
+
+The orchestrator integrates Decision Intelligence with authoritative Decision
+events, Memory, and Learning while preserving tenant isolation and the
+Human-in-the-Loop boundary. Intelligence does not approve, reject, execute,
+close, or otherwise mutate Decision lifecycle state.
