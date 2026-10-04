@@ -122,3 +122,25 @@ class DecisionIntelligenceOrchestrator:
             raise ValueError(
                 "event tenant_id does not match request tenant_id"
             )
+
+
+def build_decision_context(
+    request,
+    *,
+    knowledge=None,
+    knowledge_graph=None,
+    memory=None,
+    risk=None,
+    scenario=None,
+    forecasting=None,
+):
+    from app.modules.intelligence.context.assembler import DecisionContextAssembler
+
+    return DecisionContextAssembler(
+        knowledge=knowledge,
+        knowledge_graph=knowledge_graph,
+        memory=memory,
+        risk=risk,
+        scenario=scenario,
+        forecasting=forecasting,
+    ).assemble(request)
