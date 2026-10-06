@@ -155,3 +155,67 @@ Acceptance evidence:
 Architectural invariant preserved:
 Intelligence analyzes and proposes; the existing Human Approval mechanism and
 authoritative Decision lifecycle remain responsible for approval and execution.
+
+### V113.03 Context Integration — COMPLETE
+
+Implemented the decision-context assembly boundary that combines relevant
+evidence from Knowledge, Knowledge Graph, Memory, Risk, Scenario, and
+Forecast capabilities without silently promoting uncertain information into
+confirmed facts or estimates.
+
+Implemented:
+- tenant-aware DecisionContextRequest and DecisionContext models
+- deterministic context assembly and evidence ordering
+- explicit separation of confirmed facts, assumptions, and estimates
+- Memory FACT -> confirmed fact mapping
+- Memory ASSUMPTION -> assumption mapping
+- conservative handling of Risk, Scenario, Forecast, Knowledge, and Graph evidence
+- tenant validation and exclusion of unverified cross-tenant evidence
+- explicit graph-node selection without unsafe decision-id fallback
+- refusal to produce an empty-evidence decision context
+
+Acceptance evidence:
+- V113.02 + V113.03 targeted tests: 28 passed
+- targeted V113.02 + V113.03 verification: 28 passed
+- full project regression before V113.04 changes: 1240 passed, 1 warning
+- Python compilation: passed
+- git diff --check: passed
+- no test failures or errors
+
+Architectural invariant preserved:
+Decision context informs Intelligence; it does not grant Intelligence
+approval or execution authority.
+
+### V113.04 Authoritative Outcome and Durable Learning Integration — COMPLETE
+
+Implemented the authoritative decision-outcome path from the Decision domain
+into the Learning subsystem with durable, tenant-scoped event idempotency.
+
+Implemented:
+- DecisionOutcome and DecisionOutcomeType domain model
+- authoritative DecisionOutcomeRecorded domain event
+- Decision.record_outcome() lifecycle integration
+- expected and actual outcome values
+- metric, notes, and confidence propagation
+- source_event_id on LearningObservation
+- tenant-scoped durable source-event lookup
+- SQLite and PostgreSQL persistence for source_event_id
+- tenant-scoped unique idempotency constraints
+- DecisionOutcomeRecorded -> Learning integration bridge
+- compatibility with existing decision lifecycle learning observations
+- durable idempotency across newly constructed Learning Bridge instances
+- tenant isolation for identical source event IDs
+
+Acceptance evidence:
+- V113.04 outcome + durable idempotency tests: 4 passed
+- Learning test suite: 25 passed
+- Python compilation: passed
+- git diff --check: passed
+- durable PostgreSQL idempotency verified across a new Bridge instance
+- tenant-scoped source-event lookup and isolation verified
+- final full project suite: 1276 passed, 1 warning in 44.68s
+
+Architectural invariant preserved:
+Decision outcomes remain authoritative domain data. Learning observes
+outcomes and never approves, rejects, executes, or otherwise changes a
+decision.

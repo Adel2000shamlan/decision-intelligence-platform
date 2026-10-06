@@ -30,3 +30,11 @@ class LearningRepository(ABC):
     @abstractmethod
     def delete(self, tenant_id: UUID, observation_id: UUID) -> None:
         raise NotImplementedError
+
+
+    def get_by_source_event_id(
+        self,
+        tenant_id: UUID,
+        source_event_id: UUID,
+    ) -> LearningObservation | None:
+        return None

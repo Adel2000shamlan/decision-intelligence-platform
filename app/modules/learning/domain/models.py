@@ -29,6 +29,7 @@ class LearningObservation:
     observed_at: datetime
     confidence: float | None
     created_at: datetime
+    source_event_id: UUID | None = None
 
     @classmethod
     def create(
@@ -44,12 +45,16 @@ class LearningObservation:
         notes: str | None = None,
         observed_at: datetime | None = None,
         confidence: float | None = None,
+        source_event_id: UUID | None = None,
     ) -> "LearningObservation":
         if not isinstance(tenant_id, UUID):
             raise BusinessRuleViolation("tenant_id must be a UUID")
 
         if not isinstance(decision_id, UUID):
             raise BusinessRuleViolation("decision_id must be a UUID")
+
+        if source_event_id is not None and not isinstance(source_event_id, UUID):
+            raise BusinessRuleViolation("source_event_id must be a UUID")
 
         if not isinstance(outcome_type, LearningOutcomeType):
             try:
@@ -102,6 +107,7 @@ class LearningObservation:
             observed_at=observed,
             confidence=float(confidence) if confidence is not None else None,
             created_at=created,
+            source_event_id=source_event_id,
         )
 
     @property

@@ -18,6 +18,7 @@ class DecisionLearningBridge:
     """
 
     _OUTCOME_BY_EVENT = {
+        "DecisionOutcomeRecorded": None,
         "DecisionExecuted": LearningOutcomeType.SUCCESS,
         "DecisionRejected": LearningOutcomeType.FAILURE,
         "DecisionCancelled": LearningOutcomeType.UNKNOWN,
@@ -65,17 +66,58 @@ class DecisionLearningBridge:
         if key in self._processed:
             return
 
-        outcome_type = self._OUTCOME_BY_EVENT[event.event_type]
+        if event.event_type == "DecisionOutcomeRecorded":
+            payload = event.payload
+            if hasattr(payload, "outcome_type"):
+                outcome_value = payload.outcome_type
+                metric = payload.metric
+                expected_value = payload.expected_value
+                actual_value = payload.actual_value
+                notes = payload.notes
+                confidence = payload.confidence
+            elif isinstance(payload, dict):
+                outcome_value = payload.get("outcome_type")
+                metric = payload.get("metric")
+                expected_value = payload.get("expected_value")
+                actual_value = payload.get("actual_value")
+                notes = payload.get("notes")
+                confidence = payload.get("confidence")
+            else:
+                raise ValueError(
+                    "DecisionOutcomeRecorded payload must be an object or mapping"
+                )
 
-        self.learning.observe(
-            tenant_id=effective_tenant,
-            decision_id=event.aggregate_id,
-            outcome_type=outcome_type,
-            metric="decision.lifecycle.outcome",
-            source="decision-domain-event",
-            notes=f"Observed from {event.event_type}",
-            observed_at=event.occurred_at,
-            confidence=1.0,
-        )
+            try:
+                outcome_type = LearningOutcomeType(outcome_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("invalid decision outcome type") from exc
+
+            self.learning.observe(
+                tenant_id=effective_tenant,
+                decision_id=event.aggregate_id,
+                outcome_type=outcome_type,
+                metric=metric,
+                source="decision-outcome-event",
+                expected_value=expected_value,
+                actual_value=actual_value,
+                notes=notes,
+                observed_at=event.occurred_at,
+                confidence=confidence,
+                source_event_id=event.event_id,
+            )
+        else:
+            outcome_type = self._OUTCOME_BY_EVENT[event.event_type]
+
+            self.learning.observe(
+                tenant_id=effective_tenant,
+                decision_id=event.aggregate_id,
+                outcome_type=outcome_type,
+                metric="decision.lifecycle.outcome",
+                source="decision-domain-event",
+                notes=f"Observed from {event.event_type}",
+                observed_at=event.occurred_at,
+                confidence=1.0,
+                source_event_id=event.event_id,
+            )
 
         self._processed.add(key)

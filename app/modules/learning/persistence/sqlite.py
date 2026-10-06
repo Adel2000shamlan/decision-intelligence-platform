@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sqlite3
 from datetime import datetime
 from uuid import UUID
@@ -29,28 +31,60 @@ class SQLiteLearningRepository(LearningRepository):
                 notes TEXT,
                 observed_at TEXT NOT NULL,
                 confidence REAL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                source_event_id TEXT
             )
             """
         )
+
+        columns = {
+            row["name"]
+            for row in self.connection.execute(
+                "PRAGMA table_info(learning_observations)"
+            ).fetchall()
+        }
+
+        if "source_event_id" not in columns:
+            self.connection.execute(
+                """
+                ALTER TABLE learning_observations
+                ADD COLUMN source_event_id TEXT
+                """
+            )
+
         self.connection.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_learning_observations_tenant_created
+            CREATE INDEX IF NOT EXISTS
+            idx_learning_observations_tenant_created
             ON learning_observations(tenant_id, created_at)
             """
         )
+
         self.connection.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_learning_observations_tenant_decision
+            CREATE INDEX IF NOT EXISTS
+            idx_learning_observations_tenant_decision
             ON learning_observations(tenant_id, decision_id)
             """
         )
+
         self.connection.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_learning_observations_tenant_metric
+            CREATE INDEX IF NOT EXISTS
+            idx_learning_observations_tenant_metric
             ON learning_observations(tenant_id, metric)
             """
         )
+
+        self.connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            uq_learning_observations_tenant_source_event
+            ON learning_observations(tenant_id, source_event_id)
+            WHERE source_event_id IS NOT NULL
+            """
+        )
+
         self.connection.commit()
 
     def save(self, item: LearningObservation) -> LearningObservation:
@@ -58,11 +92,21 @@ class SQLiteLearningRepository(LearningRepository):
             self.connection.execute(
                 """
                 INSERT INTO learning_observations (
-                    id, tenant_id, decision_id, outcome_type,
-                    expected_value, actual_value, metric, source,
-                    notes, observed_at, confidence, created_at
+                    id,
+                    tenant_id,
+                    decision_id,
+                    outcome_type,
+                    expected_value,
+                    actual_value,
+                    metric,
+                    source,
+                    notes,
+                    observed_at,
+                    confidence,
+                    created_at,
+                    source_event_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     tenant_id=excluded.tenant_id,
                     decision_id=excluded.decision_id,
@@ -74,7 +118,8 @@ class SQLiteLearningRepository(LearningRepository):
                     notes=excluded.notes,
                     observed_at=excluded.observed_at,
                     confidence=excluded.confidence,
-                    created_at=excluded.created_at
+                    created_at=excluded.created_at,
+                    source_event_id=excluded.source_event_id
                 """,
                 (
                     str(item.id),
@@ -89,11 +134,17 @@ class SQLiteLearningRepository(LearningRepository):
                     item.observed_at.isoformat(),
                     item.confidence,
                     item.created_at.isoformat(),
+                    (
+                        str(item.source_event_id)
+                        if item.source_event_id is not None
+                        else None
+                    ),
                 ),
             )
             self.connection.commit()
             return item
         except sqlite3.IntegrityError as exc:
+            self.connection.rollback()
             raise BusinessRuleViolation(
                 "could not persist learning observation"
             ) from exc
@@ -114,6 +165,22 @@ class SQLiteLearningRepository(LearningRepository):
 
         return self._row(row) if row else None
 
+    def get_by_source_event_id(
+        self,
+        tenant_id: UUID,
+        source_event_id: UUID,
+    ) -> LearningObservation | None:
+        row = self.connection.execute(
+            """
+            SELECT *
+            FROM learning_observations
+            WHERE tenant_id = ? AND source_event_id = ?
+            """,
+            (str(tenant_id), str(source_event_id)),
+        ).fetchone()
+
+        return self._row(row) if row else None
+
     def list(
         self,
         tenant_id: UUID,
@@ -126,6 +193,7 @@ class SQLiteLearningRepository(LearningRepository):
             FROM learning_observations
             WHERE tenant_id = ?
         """
+
         params: list[str] = [str(tenant_id)]
 
         if decision_id is not None:
@@ -139,9 +207,14 @@ class SQLiteLearningRepository(LearningRepository):
         query += " ORDER BY created_at ASC, id ASC"
 
         rows = self.connection.execute(query, params).fetchall()
+
         return tuple(self._row(row) for row in rows)
 
-    def delete(self, tenant_id: UUID, observation_id: UUID) -> None:
+    def delete(
+        self,
+        tenant_id: UUID,
+        observation_id: UUID,
+    ) -> None:
         self.connection.execute(
             """
             DELETE FROM learning_observations
@@ -166,4 +239,9 @@ class SQLiteLearningRepository(LearningRepository):
             observed_at=datetime.fromisoformat(row["observed_at"]),
             confidence=row["confidence"],
             created_at=datetime.fromisoformat(row["created_at"]),
+            source_event_id=(
+                UUID(row["source_event_id"])
+                if row["source_event_id"] is not None
+                else None
+            ),
         )

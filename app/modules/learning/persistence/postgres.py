@@ -1,4 +1,5 @@
-import json
+from __future__ import annotations
+
 from datetime import datetime
 from uuid import UUID
 
@@ -31,28 +32,52 @@ class PostgresLearningRepository(LearningRepository):
                     notes TEXT,
                     observed_at TIMESTAMPTZ NOT NULL,
                     confidence DOUBLE PRECISION,
-                    created_at TIMESTAMPTZ NOT NULL
+                    created_at TIMESTAMPTZ NOT NULL,
+                    source_event_id UUID
                 )
                 """
             )
+
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_learning_observations_tenant_created
+                ALTER TABLE learning_observations
+                ADD COLUMN IF NOT EXISTS source_event_id UUID
+                """
+            )
+
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS
+                idx_learning_observations_tenant_created
                 ON learning_observations(tenant_id, created_at)
                 """
             )
+
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_learning_observations_tenant_decision
+                CREATE INDEX IF NOT EXISTS
+                idx_learning_observations_tenant_decision
                 ON learning_observations(tenant_id, decision_id)
                 """
             )
+
             cursor.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_learning_observations_tenant_metric
+                CREATE INDEX IF NOT EXISTS
+                idx_learning_observations_tenant_metric
                 ON learning_observations(tenant_id, metric)
                 """
             )
+
+            cursor.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS
+                uq_learning_observations_tenant_source_event
+                ON learning_observations(tenant_id, source_event_id)
+                WHERE source_event_id IS NOT NULL
+                """
+            )
+
         self.connection.commit()
 
     def save(self, item: LearningObservation) -> LearningObservation:
@@ -61,13 +86,23 @@ class PostgresLearningRepository(LearningRepository):
                 cursor.execute(
                     """
                     INSERT INTO learning_observations (
-                        id, tenant_id, decision_id, outcome_type,
-                        expected_value, actual_value, metric, source,
-                        notes, observed_at, confidence, created_at
+                        id,
+                        tenant_id,
+                        decision_id,
+                        outcome_type,
+                        expected_value,
+                        actual_value,
+                        metric,
+                        source,
+                        notes,
+                        observed_at,
+                        confidence,
+                        created_at,
+                        source_event_id
                     )
                     VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT(id) DO UPDATE SET
                         tenant_id=excluded.tenant_id,
@@ -80,7 +115,8 @@ class PostgresLearningRepository(LearningRepository):
                         notes=excluded.notes,
                         observed_at=excluded.observed_at,
                         confidence=excluded.confidence,
-                        created_at=excluded.created_at
+                        created_at=excluded.created_at,
+                        source_event_id=excluded.source_event_id
                     """,
                     (
                         item.id,
@@ -95,10 +131,13 @@ class PostgresLearningRepository(LearningRepository):
                         item.observed_at,
                         item.confidence,
                         item.created_at,
+                        item.source_event_id,
                     ),
                 )
+
             self.connection.commit()
             return item
+
         except psycopg.IntegrityError as exc:
             self.connection.rollback()
             raise BusinessRuleViolation(
@@ -114,13 +153,54 @@ class PostgresLearningRepository(LearningRepository):
             cursor.execute(
                 """
                 SELECT
-                    id, tenant_id, decision_id, outcome_type,
-                    expected_value, actual_value, metric, source,
-                    notes, observed_at, confidence, created_at
+                    id,
+                    tenant_id,
+                    decision_id,
+                    outcome_type,
+                    expected_value,
+                    actual_value,
+                    metric,
+                    source,
+                    notes,
+                    observed_at,
+                    confidence,
+                    created_at,
+                    source_event_id
                 FROM learning_observations
                 WHERE tenant_id = %s AND id = %s
                 """,
                 (tenant_id, observation_id),
+            )
+            row = cursor.fetchone()
+
+        return self._row(row) if row else None
+
+    def get_by_source_event_id(
+        self,
+        tenant_id: UUID,
+        source_event_id: UUID,
+    ) -> LearningObservation | None:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    tenant_id,
+                    decision_id,
+                    outcome_type,
+                    expected_value,
+                    actual_value,
+                    metric,
+                    source,
+                    notes,
+                    observed_at,
+                    confidence,
+                    created_at,
+                    source_event_id
+                FROM learning_observations
+                WHERE tenant_id = %s AND source_event_id = %s
+                """,
+                (tenant_id, source_event_id),
             )
             row = cursor.fetchone()
 
@@ -135,12 +215,23 @@ class PostgresLearningRepository(LearningRepository):
     ) -> tuple[LearningObservation, ...]:
         query = """
             SELECT
-                id, tenant_id, decision_id, outcome_type,
-                expected_value, actual_value, metric, source,
-                notes, observed_at, confidence, created_at
+                id,
+                tenant_id,
+                decision_id,
+                outcome_type,
+                expected_value,
+                actual_value,
+                metric,
+                source,
+                notes,
+                observed_at,
+                confidence,
+                created_at,
+                source_event_id
             FROM learning_observations
             WHERE tenant_id = %s
         """
+
         params: list[object] = [tenant_id]
 
         if decision_id is not None:
@@ -159,7 +250,11 @@ class PostgresLearningRepository(LearningRepository):
 
         return tuple(self._row(row) for row in rows)
 
-    def delete(self, tenant_id: UUID, observation_id: UUID) -> None:
+    def delete(
+        self,
+        tenant_id: UUID,
+        observation_id: UUID,
+    ) -> None:
         with self.connection.cursor() as cursor:
             cursor.execute(
                 """
@@ -168,6 +263,7 @@ class PostgresLearningRepository(LearningRepository):
                 """,
                 (tenant_id, observation_id),
             )
+
         self.connection.commit()
 
     @staticmethod
@@ -185,4 +281,5 @@ class PostgresLearningRepository(LearningRepository):
             observed_at=row[9],
             confidence=row[10],
             created_at=row[11],
+            source_event_id=row[12],
         )

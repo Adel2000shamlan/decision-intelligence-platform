@@ -28,7 +28,15 @@ class LearningService:
         notes: str | None = None,
         observed_at=None,
         confidence: float | None = None,
+        source_event_id: UUID | None = None,
     ) -> LearningObservation:
+        if source_event_id is not None:
+            finder = getattr(self.repository, "get_by_source_event_id", None)
+            if finder is not None:
+                existing = finder(tenant_id, source_event_id)
+                if existing is not None:
+                    return existing
+
         observation = LearningObservation.create(
             tenant_id=tenant_id,
             decision_id=decision_id,
@@ -40,6 +48,7 @@ class LearningService:
             notes=notes,
             observed_at=observed_at,
             confidence=confidence,
+            source_event_id=source_event_id,
         )
         self.repository.save(observation)
         return observation
