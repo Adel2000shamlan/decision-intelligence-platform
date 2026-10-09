@@ -219,3 +219,32 @@ Architectural invariant preserved:
 Decision outcomes remain authoritative domain data. Learning observes
 outcomes and never approves, rejects, executes, or otherwise changes a
 decision.
+
+### V113.05 Learning Feedback and Adaptive Intelligence Context — COMPLETE
+
+Implemented:
+- Immutable LearningFeedback aggregation from tenant-scoped observations.
+- Outcome counts for SUCCESS, PARTIAL, FAILURE, and UNKNOWN.
+- Average variance and confidence when corresponding values are available.
+- Latest observation timestamp and source-observation retention.
+- LearningFeedbackService backed by the Learning repository.
+- Conversion of historical feedback into traceable OBSERVATION evidence.
+- Source observation IDs and available source event IDs in feedback evidence.
+- Deterministic evidence identity for the same feedback observation set.
+- Explicit rejection of cross-tenant feedback.
+- Intelligence input enrichment without changing scoring factors.
+- Preservation of deterministic score and mandatory human review.
+
+Acceptance evidence:
+- V113.05 targeted tests: 12 passed.
+- Final full project suite after confidence-normalization correction:
+  1288 passed, 1 warning in 45.00s.
+- Python compilation after the final correction: passed.
+- git diff --check after the final correction: passed.
+- PostgreSQL-backed feedback tests passed in the targeted test run.
+
+Architectural invariants preserved:
+- Learning observations remain observations, not confirmed facts.
+- Learning does not change ScoreFactor weights or the deterministic scoring engine.
+- Intelligence does not approve, reject, execute, or change decision status.
+- Human review and the authoritative Decision lifecycle remain in control.

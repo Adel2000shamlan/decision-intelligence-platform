@@ -81,3 +81,37 @@ class LearningService:
         observation_id: UUID,
     ) -> None:
         self.repository.delete(tenant_id, observation_id)
+
+
+# V113.05 - Learning Feedback
+from app.modules.learning.domain.feedback import LearningFeedback
+
+
+class LearningFeedbackService:
+    """Builds tenant-scoped historical learning feedback."""
+
+    def __init__(self, repository: LearningRepository) -> None:
+        self.repository = repository
+
+    def build(
+        self,
+        tenant_id: UUID,
+        *,
+        metric: str,
+    ) -> LearningFeedback:
+        if not isinstance(tenant_id, UUID):
+            raise ValueError("tenant_id must be UUID")
+
+        if not isinstance(metric, str) or not metric.strip():
+            raise ValueError("metric is required")
+
+        observations = self.repository.list(
+            tenant_id,
+            metric=metric.strip(),
+        )
+
+        return LearningFeedback.from_observations(
+            tenant_id=tenant_id,
+            metric=metric.strip(),
+            observations=observations,
+        )
