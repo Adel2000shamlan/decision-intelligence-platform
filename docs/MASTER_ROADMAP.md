@@ -270,3 +270,24 @@ Architectural invariants preserved:
 - Deterministic scoring and scoring-factor weights remain unchanged.
 - Intelligence does not approve, reject, or execute decisions.
 - Human review and the authoritative Decision lifecycle remain in control.
+
+### V113.07 Intelligence Integration Verification — COMPLETE
+
+Implemented:
+- Enforced tenant identity validation at the intelligence orchestration boundary.
+- Events without a tenant ID are rejected before memory or learning integration.
+- Event tenant IDs must be UUID values matching the request tenant.
+- Added regression coverage verifying that missing-tenant events are rejected
+  and neither integration bridge receives the event.
+
+Acceptance evidence:
+- V113.02 orchestrator and related targeted tests: 50 passed.
+- Full project test suite: 1290 passed, 1 warning in 44.09s.
+- Python compilation via compileall: passed.
+- git diff --check: passed.
+
+Architectural invariants preserved:
+- Intelligence analyzes and proposes; it does not approve or execute.
+- Human review and the authoritative Decision lifecycle remain in control.
+- Tenant identity is validated before memory and learning integration.
+- Existing deterministic scoring behavior remains unchanged.

@@ -118,7 +118,11 @@ class DecisionIntelligenceOrchestrator:
             raise ValueError("decision event aggregate_id must be UUID")
 
         event_tenant = event.metadata.tenant_id
-        if event_tenant is not None and event_tenant != request.tenant_id:
+        if event_tenant is None:
+            raise ValueError("event tenant_id is required")
+        if not isinstance(event_tenant, UUID):
+            raise ValueError("event tenant_id must be UUID")
+        if event_tenant != request.tenant_id:
             raise ValueError(
                 "event tenant_id does not match request tenant_id"
             )

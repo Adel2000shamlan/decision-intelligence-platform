@@ -210,3 +210,36 @@ def test_orchestrator_rejects_non_decision_aggregate_event():
             make_request(tenant_id),
             event=event,
         )
+
+def test_event_missing_tenant_is_rejected_before_integration():
+    tenant_id = uuid4()
+    event = make_event(tenant_id, "DecisionExecuted")
+    event_without_tenant = DomainEventEnvelope(
+        event_id=event.event_id,
+        event_type=event.event_type,
+        occurred_at=event.occurred_at,
+        aggregate_id=event.aggregate_id,
+        aggregate_type=event.aggregate_type,
+        aggregate_version=event.aggregate_version,
+        payload=event.payload,
+        metadata=EventMetadata(
+            correlation_id=event.metadata.correlation_id,
+            actor_id=event.metadata.actor_id,
+            tenant_id=None,
+        ),
+    )
+    memory = FakeMemoryBridge()
+    learning = FakeLearningBridge()
+    orchestrator = DecisionIntelligenceOrchestrator(
+        memory=memory,
+        learning=learning,
+    )
+
+    with pytest.raises(ValueError, match="event tenant_id is required"):
+        orchestrator.analyze(
+            make_request(tenant_id),
+            event=event_without_tenant,
+        )
+
+    assert memory.events == []
+    assert learning.events == []
