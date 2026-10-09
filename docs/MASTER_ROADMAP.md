@@ -248,3 +248,25 @@ Architectural invariants preserved:
 - Learning does not change ScoreFactor weights or the deterministic scoring engine.
 - Intelligence does not approve, reject, execute, or change decision status.
 - Human review and the authoritative Decision lifecycle remain in control.
+
+### V113.06 Intelligence Quality, Traceability and Safety Validation — COMPLETE
+
+Implemented:
+- Corrected memory evidence classification in the decision context assembler.
+- Only evidence explicitly classified as FACT is included in confirmed_facts.
+- ASSUMPTION evidence remains in assumptions.
+- OBSERVATION evidence remains traceable evidence and is not promoted to a confirmed fact.
+- Added regression coverage for memory observations to prevent future classification regressions.
+
+Acceptance evidence:
+- Decision context tests: 9 passed.
+- Intelligence and memory tests: 61 passed.
+- Full project test suite: 1289 passed, 1 warning in 45.82s.
+- Python compilation via compileall: passed.
+- git diff --check: passed.
+
+Architectural invariants preserved:
+- Historical observations are not promoted to confirmed facts.
+- Deterministic scoring and scoring-factor weights remain unchanged.
+- Intelligence does not approve, reject, or execute decisions.
+- Human review and the authoritative Decision lifecycle remain in control.

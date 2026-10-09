@@ -175,7 +175,7 @@ class DecisionContextAssembler:
 
             if evidence_type is EvidenceType.ASSUMPTION:
                 assumptions.append(statement)
-            else:
+            elif evidence_type is EvidenceType.FACT:
                 confirmed.append(statement)
 
             sources.append(item.source)

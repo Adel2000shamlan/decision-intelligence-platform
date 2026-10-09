@@ -249,3 +249,31 @@ def test_context_excludes_risk_without_verified_tenant():
         DecisionContextAssembler(
             risk=RiskSource(),
         ).assemble(request)
+
+
+def test_context_memory_observation_is_not_confirmed_fact():
+    from app.modules.memory.domain.models import MemoryItem, MemoryType
+
+    tenant = uuid4()
+    statement = "Historical sales increased during one month"
+
+    memory = MemoryItem.create(
+        tenant_id=tenant,
+        memory_type=MemoryType.OBSERVATION,
+        content=statement,
+        source="historical-record",
+    )
+
+    request = DecisionContextRequest(
+        tenant_id=tenant,
+        decision_id=uuid4(),
+    )
+
+    context = DecisionContextAssembler(
+        memory=FakeMemory((memory,)),
+    ).assemble(request)
+
+    assert len(context.evidence) == 1
+    assert context.evidence[0].evidence_type.value == "observation"
+    assert statement not in context.confirmed_facts
+    assert statement not in context.assumptions
