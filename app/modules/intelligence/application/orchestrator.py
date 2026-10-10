@@ -18,6 +18,10 @@ from app.modules.intelligence.integration.learning_bridge import (
 from app.modules.intelligence.integration.memory_bridge import (
     DecisionMemoryBridge,
 )
+from app.modules.intelligence.integration.learning_feedback import (
+    LearningFeedbackIntelligenceAdapter,
+)
+from app.modules.learning.application import LearningFeedbackService
 from app.shared.domain.events import DomainEventEnvelope
 
 
@@ -65,10 +69,16 @@ class DecisionIntelligenceOrchestrator:
         intelligence: IntelligenceApplicationService | None = None,
         memory: DecisionMemoryBridge | None = None,
         learning: DecisionLearningBridge | None = None,
+        learning_feedback: LearningFeedbackService | None = None,
+        learning_feedback_adapter: LearningFeedbackIntelligenceAdapter | None = None,
     ) -> None:
         self.intelligence = intelligence or IntelligenceApplicationService()
         self.memory = memory
         self.learning = learning
+        self.learning_feedback = learning_feedback
+        self.learning_feedback_adapter = (
+            learning_feedback_adapter or LearningFeedbackIntelligenceAdapter()
+        )
 
     def analyze(
         self,
@@ -105,6 +115,33 @@ class DecisionIntelligenceOrchestrator:
             memory_integrated=memory_integrated,
             learning_integrated=learning_integrated,
         )
+
+    def analyze_with_learning_feedback(
+        self,
+        request: DecisionIntelligenceInput,
+        *,
+        metric: str,
+        event: DomainEventEnvelope | None = None,
+    ) -> DecisionIntelligenceOrchestrationResult:
+        """Analyze using tenant-scoped historical feedback as observation evidence.
+
+        Feedback enriches the analysis input only. It never approves or executes
+        a decision, and the normal human-review requirement remains in force.
+        """
+        if self.learning_feedback is None:
+            raise ValueError(
+                "learning_feedback service is required for feedback analysis"
+            )
+
+        feedback = self.learning_feedback.build(
+            request.tenant_id,
+            metric=metric,
+        )
+        enriched_request = self.learning_feedback_adapter.enrich(
+            request,
+            feedback,
+        )
+        return self.analyze(enriched_request, event=event)
 
     @staticmethod
     def _validate_event(

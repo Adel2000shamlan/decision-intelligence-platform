@@ -291,3 +291,36 @@ Architectural invariants preserved:
 - Human review and the authoritative Decision lifecycle remain in control.
 - Tenant identity is validated before memory and learning integration.
 - Existing deterministic scoring behavior remains unchanged.
+
+### V113.08 End-to-End Decision Intelligence Acceptance — COMPLETE
+
+Implemented:
+- Integrated tenant-scoped historical learning feedback into the
+  decision intelligence orchestration path through an explicit opt-in method.
+- Added an end-to-end acceptance test that records a decision outcome,
+  builds historical feedback, and verifies that the enriched request
+  reaches the real intelligence analysis service.
+- Added coverage for missing feedback-service configuration.
+- Added tenant-isolation coverage for historical feedback retrieval.
+
+Acceptance evidence:
+- Targeted intelligence integration tests: 23 passed.
+- Full project test suite: 1293 passed, 0 failed, 1 deprecation warning.
+- Python compilation via compileall: passed.
+- git diff --check: passed.
+
+Architectural invariants preserved:
+- Historical learning feedback is represented as OBSERVATION evidence,
+  not promoted to confirmed facts.
+- Feedback evidence is tenant-scoped and traceable to its source events.
+- Deterministic decision scoring remains unchanged when feedback is added.
+- Human review remains mandatory.
+- Intelligence does not approve, reject, or execute decisions.
+- The authoritative Decision lifecycle remains outside the intelligence
+  orchestration boundary.
+
+Verification note:
+- PostgreSQL emitted constraint-violation log messages during tests that
+  exercise duplicate and invalid persistence operations. The full test
+  suite nevertheless completed successfully.
+- Starlette emitted one BlockingPortal deprecation warning.
