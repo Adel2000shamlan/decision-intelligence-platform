@@ -324,3 +324,34 @@ Verification note:
   exercise duplicate and invalid persistence operations. The full test
   suite nevertheless completed successfully.
 - Starlette emitted one BlockingPortal deprecation warning.
+
+### V113.09 Final Integration Audit — COMPLETE
+
+Implemented:
+- Moved event validation ahead of decision intelligence analysis.
+- Added regression coverage proving that an event with a tenant identity
+  that does not match the request is rejected before analysis is invoked.
+- Preserved the existing event integration behavior after successful
+  validation.
+
+Acceptance evidence:
+- Dedicated invalid-event ordering regression test: passed.
+- Orchestrator tests: 9 passed.
+- Intelligence and learning tests: 63 passed, 12 skipped.
+- Full project test suite: 1231 passed, 63 skipped, 0 failed.
+- Python compilation via compileall: passed.
+- git diff --check: passed.
+
+Architectural invariants:
+- Event and tenant validation precede intelligence analysis.
+- Invalid events must not reach intelligence analysis, memory, or learning.
+- Human review remains mandatory.
+- Intelligence does not approve, reject, or execute decisions.
+- The authoritative Decision lifecycle remains outside the intelligence
+  orchestration boundary.
+
+Verification note:
+- The full test suite emitted one Starlette BlockingPortal deprecation
+  warning.
+- PostgreSQL was restarted successfully after the local server was found
+  stopped. The full suite subsequently completed successfully.

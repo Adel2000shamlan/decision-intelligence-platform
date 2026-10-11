@@ -243,3 +243,34 @@ def test_event_missing_tenant_is_rejected_before_integration():
 
     assert memory.events == []
     assert learning.events == []
+
+
+def test_invalid_event_is_rejected_before_intelligence_analysis():
+    class RecordingIntelligence:
+        def __init__(self):
+            self.calls = 0
+
+        def analyze_decision(self, request):
+            self.calls += 1
+            raise AssertionError(
+                "intelligence analysis must not run for an invalid event"
+            )
+
+    request_tenant = uuid4()
+    event_tenant = uuid4()
+    intelligence = RecordingIntelligence()
+
+    orchestrator = DecisionIntelligenceOrchestrator(
+        intelligence=intelligence,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="does not match request tenant_id",
+    ):
+        orchestrator.analyze(
+            make_request(request_tenant),
+            event=make_event(event_tenant, "DecisionCreated"),
+        )
+
+    assert intelligence.calls == 0

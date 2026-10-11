@@ -86,6 +86,9 @@ class DecisionIntelligenceOrchestrator:
         *,
         event: DomainEventEnvelope | None = None,
     ) -> DecisionIntelligenceOrchestrationResult:
+        if event is not None:
+            self._validate_event(request, event)
+
         analysis = self.intelligence.analyze_decision(request)
 
         if not analysis.analysis.human_review_required:
@@ -97,8 +100,6 @@ class DecisionIntelligenceOrchestrator:
         learning_integrated = False
 
         if event is not None:
-            self._validate_event(request, event)
-
             if self.memory is not None and self.memory.can_handle(event.event_type):
                 self.memory.handle(event)
                 memory_integrated = True
