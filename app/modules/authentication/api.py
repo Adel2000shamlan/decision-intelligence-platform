@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 from uuid import UUID
-from app.modules.identity.in_memory import InMemoryUserRepository
+from app.modules.identity import DelegatingUserRepository, InMemoryUserRepository
 from .security import *
 router=APIRouter(prefix='/auth',tags=['authentication'])
-users=InMemoryUserRepository(); credentials=CredentialService(); tokens=TokenService(); rbac=RBAC(); auth=AuthenticationService(users,credentials,tokens,rbac)
+users=DelegatingUserRepository(InMemoryUserRepository()); credentials=CredentialService(); tokens=TokenService(); rbac=RBAC(); auth=AuthenticationService(users,credentials,tokens,rbac)
 rbac.define('owner',{'decision:read','decision:write','project:read','project:write','user:manage'}); rbac.define('viewer',{'decision:read','project:read'})
 class RegisterIn(BaseModel): user_id:UUID; password:str=Field(min_length=1)
 class LoginIn(BaseModel): email:str; password:str; tenant_id:UUID|None=None

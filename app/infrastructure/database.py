@@ -11,13 +11,13 @@ class Database:
     @contextmanager
     def transaction(self):
         if self.kind=='sqlite':
-            conn=sqlite3.connect(self.path); conn.execute('PRAGMA foreign_keys=ON')
+            conn=sqlite3.connect(self.path, check_same_thread=False); conn.execute('PRAGMA foreign_keys=ON')
             try: yield conn; conn.commit()
             except Exception: conn.rollback(); raise
             finally: conn.close()
         else:
             try: import psycopg
-            except ImportError as e: raise RuntimeError('PostgreSQL requires psycopg[binary] in the deployment environment') from e
+            except ImportError as e: raise RuntimeError('PostgreSQL requires psycopg 3 in the deployment environment') from e
             conn=psycopg.connect(self.url)
             try: yield conn; conn.commit()
             except Exception: conn.rollback(); raise

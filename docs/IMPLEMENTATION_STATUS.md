@@ -136,3 +136,182 @@ Closed after 149 passing tests, compileall success and ZIP integrity verificatio
 
 ## V104.04.01.05–V104.04.01.16 — Authentication Foundation Closed
 - Security identity, actor context, credential ownership boundary, failure/lockout, abuse/security rules, foundation services, security audit contract, integration, security tests, regression tests, DoD and release closure completed.
+
+## V109 — Testing / QA / Performance
+
+Status: COMPLETED AND VERIFIED.
+
+### Verification
+- Full pytest suite: 712 passed.
+- Full-suite runtime: 7.31 seconds.
+- Test collection: 712 tests collected successfully.
+- Targeted V106/V107/V108 coverage: 51 passed.
+- Governance + Frontend tests: 26 passed.
+- Python compileall for `app` and `tests`: OK.
+- `git diff --check`: OK.
+- Repository status: clean.
+- Secret-pattern scan: 0 potential secret matches.
+- Layer-boundary scan:
+  - Domain → Infrastructure: 0
+  - Domain → API: 0
+  - Domain → Frontend: 0
+
+### Performance observation
+- No individual test exceeded 0.86 seconds in the final top-15 duration report.
+- Password-security tests are the dominant runtime contributors because they intentionally perform computationally expensive password hashing.
+- No load-testing dependency was added because no load-testing framework is currently part of the project dependency baseline.
+
+### Known warning
+- One external DeprecationWarning originates from the installed Starlette/AnyIO TestClient compatibility layer:
+  `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+- This warning does not cause test failure and is outside the application source tree.
+
+### Scope boundary
+V109 verification covers the available unit, integration, API, domain, agent, security/governance, frontend and regression test suites present in this baseline. It does not claim production load testing, browser accessibility automation, distributed failure/recovery testing, or production-environment performance certification.
+
+
+## V110 — Deployment / Production
+
+Status: COMPLETED AND VERIFIED.
+
+### Production hardening
+- `Dockerfile.prod` uses Python 3.12 slim, runs as non-root UID 10001, and starts the application through Uvicorn.
+- `docker-compose.prod.yml` externalizes PostgreSQL credentials through environment variables and defines healthchecks for API, PostgreSQL, and Redis.
+- API startup uses a FastAPI lifespan to apply the core database migration before serving requests.
+- PostgreSQL persistence repositories were implemented and verified for organization, project, agent, knowledge, and KPI modules.
+- PostgreSQL authentication credential/token persistence and tenant-scoped RBAC persistence were implemented and runtime-verified.
+- Repository selection is centralized through the infrastructure composition root; application/API module layer-boundary scan reports zero direct infrastructure/API/frontend imports.
+
+### Verification
+- Full PostgreSQL-enabled regression after production-readiness audit: **1189 passed, 1 warning**.
+- Full-suite PostgreSQL-enabled runtime: 44.63 seconds.
+- Python compilation for `app` and `tests`: OK.
+- `git diff --check`: OK.
+- Layer-boundary scan: 0 matches.
+- Secret-pattern scan: no embedded credentials or private-key material detected; compose PostgreSQL credentials are environment-variable references.
+- PostgreSQL migration/repository runtime integration was re-verified successfully, including Decision and Risk repositories.
+
+### Environment limitation
+- Docker CLI is not installed in the Termux environment, so an actual Docker image build/compose deployment was not executed on-device.
+- PostgreSQL is running locally in the Termux environment and the production configuration was verified with `APP_ENV=production` and a PostgreSQL `DATABASE_URL`. The FastAPI production lifespan and `/api/v1/health` endpoint were successfully exercised over PostgreSQL with HTTP 200. Docker image/compose deployment remains unverified because Docker CLI is not installed on-device.
+
+### Known warning
+- One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+- The warning is outside the application source tree and does not cause test failure.
+
+### Scope boundary
+V110 establishes production deployment contracts, PostgreSQL persistence, startup migration behavior, health checks, security-oriented container hardening, and regression verification. It does not claim a production Docker build on Termux, distributed load testing, or production infrastructure certification.
+
+## V111 — MVP Launch
+
+Status: COMPLETED AND VERIFIED.
+
+### MVP launch foundation
+- Pilot onboarding lifecycle implemented with tenant-scoped participant management and explicit onboarding/activation states.
+- Feedback loop implemented with typed feedback, participant validation, tenant isolation, and active-participant enforcement.
+- MVP analytics foundation implemented with tenant-scoped events and KPI measurements.
+- Default measurable MVP KPIs defined for onboarding completion, weekly active pilot users, feedback submission rate, support first-response time, and critical incident rate.
+- Support process implemented with priority/status lifecycle and tenant-scoped ticket management.
+- Release checklist implemented with explicit release gates, evidence, failure reporting, and readiness enforcement.
+- Rollback plan implemented with explicit previous-release requirement and deployment callback boundary.
+- MVP launch control implemented with critical launch gates, readiness validation, release transition, and rollback transition.
+
+### Verification
+- Full pytest suite: **738 passed, 2 skipped, 1 warning**.
+- Full-suite runtime: **9.76 seconds**.
+- Python compilation for `app` and `tests`: OK.
+- `git diff --check`: OK.
+- Layer-boundary scan: **0 matches**.
+- V111-specific analytics, pilot, support, release, and launch tests passed.
+- Tenant isolation and validation rules are covered by the implemented application/domain tests.
+
+### Release and rollback controls
+- MVP release requires launch readiness gates to pass.
+- Critical launch gates are evaluated explicitly before release.
+- Release checklist requires all declared checklist gates to pass.
+- Rollback requires a declared previous release and is represented as an explicit controlled operation.
+- Sensitive business decisions remain outside autonomous agent approval.
+
+### Scope boundary
+V111 establishes the MVP launch control plane, pilot onboarding, feedback, analytics/KPI measurement foundation, support workflow, release checklist, rollback contract, and measurable launch gates.
+
+This closure does not claim a public production launch, external pilot completion, production-scale performance certification, real customer adoption metrics, or operational success outside the tested application boundary. Actual pilot results must be collected from real usage after deployment.
+
+### Known warning
+- One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+- The warning is outside the application source tree and does not cause test failure.
+
+## V112.01 — Forecasting & Simulation
+Status: COMPLETED AND VERIFIED.
+
+### Forecasting foundation
+- Explicit time-series observations implemented with tenant isolation.
+- Forecast requests require a configurable minimum observation count.
+- Deterministic rolling-mean baseline forecasting implemented.
+- Future observations are rejected.
+- Duplicate observations for the same tenant, metric, and timestamp are rejected.
+- Different metrics may share timestamps.
+- Identical metric timestamps remain isolated across tenants.
+- Invalid numeric and boolean inputs are rejected explicitly.
+
+### Simulation foundation
+- Explicit scenario variables and weights implemented.
+- Simulation requires at least one variable.
+- Simulation requires positive total variable weight.
+- Baseline and tenant inputs are validated.
+- Simulation results are explicitly marked as estimates.
+- No inferred or hidden input values are introduced.
+
+### Verification
+- Forecasting-specific suite: **13 passed**.
+- Full project suite: **751 passed, 2 skipped, 1 warning**.
+- Full-suite runtime: **9.03 seconds**.
+- Existing project tests remain green after V112.01 integration.
+
+### Scope boundary
+V112.01 provides a deterministic forecasting baseline and explicit weighted simulation foundation. It does not claim statistical model accuracy, production-scale forecasting performance, causal inference, or prediction of real-world outcomes without sufficient historical data.
+
+### Known warning
+- One external `Starlette/AnyIO` `DeprecationWarning` originates from the installed TestClient compatibility layer: `anyio.abc.BlockingPortal` is deprecated in favor of `anyio.from_thread.BlockingPortal`.
+
+## V113.01 — Shared Event Integration Contract
+
+Status: COMPLETE
+
+Evidence:
+- V113.01 targeted tests: 13 passed
+- Full test suite: 1244 passed, 1 warning
+- git diff --check: passed
+
+Implementation:
+- app/shared/integration/events.py
+- app/shared/integration/__init__.py
+- tests/shared/test_event_integration.py
+
+The implementation bridges the existing DomainEventEnvelope contract to the
+existing infrastructure EventBus/EventStore while preserving transport-neutral
+domain events and idempotent event handling.
+
+## V113.02 — Decision Intelligence Orchestrator
+
+Status: COMPLETE
+
+Implementation:
+- app/modules/intelligence/application/orchestrator.py
+- app/modules/intelligence/integration/learning_bridge.py
+- app/modules/intelligence/integration/memory_bridge.py
+- app/modules/intelligence/integration/__init__.py
+- tests/intelligence/test_v113_02_orchestrator.py
+- tests/intelligence/test_v113_02_learning_bridge.py
+- tests/intelligence/test_v113_02_memory_bridge.py
+
+Evidence:
+- V113.02 targeted tests: 20 passed
+- Full project suite: 1264 passed, 1 warning
+- Python compilation: passed
+- git diff --cached --check: passed
+
+The orchestrator integrates Decision Intelligence with authoritative Decision
+events, Memory, and Learning while preserving tenant isolation and the
+Human-in-the-Loop boundary. Intelligence does not approve, reject, execute,
+close, or otherwise mutate Decision lifecycle state.

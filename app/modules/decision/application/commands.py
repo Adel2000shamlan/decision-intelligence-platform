@@ -1,46 +1,210 @@
 from dataclasses import dataclass
 from uuid import UUID
+
 from app.shared.domain.errors import EntityNotFound, BusinessRuleViolation
+
 from .ports import DecisionUnitOfWork
-from ..domain.models import DecisionType,DecisionPriority
+from ..domain.models import DecisionType, DecisionPriority
+from ..domain.services import DecisionDomainService
+
+
 @dataclass(frozen=True)
-class CreateDecision: organization_id:UUID; project_id:UUID; title:str; description:str=''; decision_type:DecisionType=DecisionType.STRATEGIC; priority:DecisionPriority=DecisionPriority.MEDIUM; actor_id:UUID|None=None
+class CreateDecision:
+    organization_id: UUID
+    project_id: UUID
+    title: str
+    description: str = ""
+    decision_type: DecisionType = DecisionType.STRATEGIC
+    priority: DecisionPriority = DecisionPriority.MEDIUM
+    actor_id: UUID | None = None
+
+
 @dataclass(frozen=True)
-class StartDecisionAnalysis: decision_id:UUID; actor_id:UUID|None=None
+class StartDecisionAnalysis:
+    decision_id: UUID
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class SubmitDecisionForApproval: decision_id:UUID; actor_id:UUID|None=None
+class SubmitDecisionForApproval:
+    decision_id: UUID
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class ApproveDecision: decision_id:UUID; actor_id:UUID|None=None
+class ApproveDecision:
+    decision_id: UUID
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class RejectDecision: decision_id:UUID; reason:str|None=None; actor_id:UUID|None=None
+class RejectDecision:
+    decision_id: UUID
+    reason: str | None = None
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class CancelDecision: decision_id:UUID; reason:str|None=None; actor_id:UUID|None=None
+class CancelDecision:
+    decision_id: UUID
+    reason: str | None = None
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class ExecuteDecision: decision_id:UUID; actor_id:UUID|None=None
+class ExecuteDecision:
+    decision_id: UUID
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class CloseDecision: decision_id:UUID; actor_id:UUID|None=None
+class CloseDecision:
+    decision_id: UUID
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 @dataclass(frozen=True)
-class UpdateDecision: decision_id:UUID; field_name:str; value:object; actor_id:UUID|None=None
+class UpdateDecision:
+    decision_id: UUID
+    field_name: str
+    value: object
+    actor_id: UUID | None = None
+    expected_version: int | None = None
+
+
 class DecisionCommandHandler:
-    def __init__(self,uow:DecisionUnitOfWork): self.uow=uow
-    def _get(self,i):
-        d=self.uow.repository.get_by_id(i)
-        if d is None: raise EntityNotFound(f'decision not found: {i}')
-        return d
-    def _save(self,d): self.uow.repository.save(d); self.uow.commit(); return d
-    def create(self,c):
-        d=self.uow.factory.create(c.organization_id,c.project_id,c.title,c.description,c.decision_type,c.priority,c.actor_id); self.uow.policy.ensure_unique_title(self.uow.repository,d); return self._save(d)
-    def start_analysis(self,c): return self._mut(self._get(c.decision_id),lambda d:d.start_analysis(c.actor_id))
-    def submit_for_approval(self,c):
-        d=self._get(c.decision_id); self.uow.policy.ensure_can_submit(d); d.submit_for_approval(c.actor_id); return self._save(d)
-    def approve(self,c):
-        d=self._get(c.decision_id); self.uow.policy.ensure_can_approve(d); d.approve(c.actor_id); return self._save(d)
-    def reject(self,c): return self._mut(self._get(c.decision_id),lambda d:d.reject(c.reason,c.actor_id))
-    def cancel(self,c): return self._mut(self._get(c.decision_id),lambda d:d.cancel(c.reason,c.actor_id))
-    def execute(self,c): return self._mut(self._get(c.decision_id),lambda d:d.execute(c.actor_id))
-    def close(self,c): return self._mut(self._get(c.decision_id),lambda d:d.close(c.actor_id))
-    def update(self,c):
-        d=self._get(c.decision_id)
-        if c.field_name=='title' and isinstance(c.value,str) and c.value.strip()!=d.title and self.uow.repository.exists_by_title(d.project_id,c.value): raise BusinessRuleViolation(f'decision title already exists in project: {c.value.strip()}')
-        d.update(c.field_name,c.value,c.actor_id); return self._save(d)
-    def _mut(self,d,fn): fn(d); return self._save(d)
+    def __init__(
+        self,
+        uow: DecisionUnitOfWork,
+        domain_service: DecisionDomainService | None = None,
+    ):
+        self.uow = uow
+        self.domain_service = domain_service or DecisionDomainService()
+
+    def _get(self, decision_id: UUID):
+        decision = self.uow.repository.get_by_id(decision_id)
+        if decision is None:
+            raise EntityNotFound(f"decision not found: {decision_id}")
+        return decision
+
+    def _commit_result(self, result):
+        self.uow.commit()
+        return result.entity
+
+    def create(self, command: CreateDecision):
+        result = self.domain_service.create(
+            repository=self.uow.repository,
+            organization_id=command.organization_id,
+            project_id=command.project_id,
+            title=command.title,
+            description=command.description,
+            decision_type=command.decision_type,
+            priority=command.priority,
+            actor_id=command.actor_id,
+        )
+        self.uow.commit()
+        return result.entity
+
+    def start_analysis(self, command: StartDecisionAnalysis):
+        result = self.domain_service.start_analysis(
+            self.uow.repository,
+            command.decision_id,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def submit_for_approval(self, command: SubmitDecisionForApproval):
+        decision = self._get(command.decision_id)
+        self.uow.policy.ensure_can_submit(decision)
+
+        result = self.domain_service.submit_for_approval(
+            self.uow.repository,
+            command.decision_id,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def approve(self, command: ApproveDecision):
+        decision = self._get(command.decision_id)
+        self.uow.policy.ensure_can_approve(decision)
+
+        result = self.domain_service.approve(
+            self.uow.repository,
+            command.decision_id,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def reject(self, command: RejectDecision):
+        result = self.domain_service.reject(
+            self.uow.repository,
+            command.decision_id,
+            command.reason,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def cancel(self, command: CancelDecision):
+        result = self.domain_service.cancel(
+            self.uow.repository,
+            command.decision_id,
+            command.reason,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def execute(self, command: ExecuteDecision):
+        result = self.domain_service.execute(
+            self.uow.repository,
+            command.decision_id,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def close(self, command: CloseDecision):
+        result = self.domain_service.close(
+            self.uow.repository,
+            command.decision_id,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)
+
+    def update(self, command: UpdateDecision):
+        decision = self._get(command.decision_id)
+
+        if (
+            command.field_name == "title"
+            and isinstance(command.value, str)
+            and command.value.strip() != decision.title
+            and self.uow.repository.exists_by_title(
+                decision.project_id,
+                command.value,
+            )
+        ):
+            raise BusinessRuleViolation(
+                f"decision title already exists in project: {command.value.strip()}"
+            )
+
+        result = self.domain_service.update(
+            self.uow.repository,
+            command.decision_id,
+            command.field_name,
+            command.value,
+            command.actor_id,
+            command.expected_version,
+        )
+        return self._commit_result(result)

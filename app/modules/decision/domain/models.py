@@ -36,6 +36,15 @@ class DecisionCancelled(DecisionEvent): previous_status:DecisionStatus; reason:s
 class DecisionExecuted(DecisionEvent): previous_status:DecisionStatus
 @dataclass(frozen=True)
 class DecisionClosed(DecisionEvent): previous_status:DecisionStatus
+
+@dataclass(frozen=True)
+class DecisionOutcomeRecorded(DecisionEvent):
+    outcome_type: str
+    metric: str
+    expected_value: float | None
+    actual_value: float | None
+    notes: str | None
+    confidence: float | None
 @dataclass(frozen=True)
 class DecisionUpdated(DecisionEvent): field_name:str; old_value:object; new_value:object
 
@@ -95,6 +104,28 @@ class Decision(AggregateRoot):
         self._transition(DecisionStatus.CANCELLED,actor_id,DecisionCancelled,reason=reason)
     def execute(self,actor_id=None): self._transition(DecisionStatus.EXECUTED,actor_id,DecisionExecuted)
     def close(self,actor_id=None): self._transition(DecisionStatus.CLOSED,actor_id,DecisionClosed)
+
+    def record_outcome(self, outcome, actor_id=None):
+        from .outcome import DecisionOutcome
+
+        if not isinstance(outcome, DecisionOutcome):
+            raise InvalidDomainData("outcome must be DecisionOutcome")
+
+        self._touch()
+        self._emit(
+            DecisionOutcomeRecorded(
+                uuid4(),
+                self.updated_at,
+                self.id,
+                actor_id,
+                outcome.outcome_type.value,
+                outcome.metric,
+                outcome.expected_value,
+                outcome.actual_value,
+                outcome.notes,
+                outcome.confidence,
+            )
+        )
     def update(self,field_name,value,actor_id=None):
         if self.status in (DecisionStatus.APPROVED,DecisionStatus.EXECUTED,DecisionStatus.CLOSED,DecisionStatus.CANCELLED): raise BusinessRuleViolation('decision cannot be updated in its current state')
         if field_name=='title': value=_text(value,'title')

@@ -14,6 +14,15 @@ class SQLiteOrganizationRepository:
     def _row(self,row):
         if not row:return None
         return Organization(id=UUID(row['id']),name=row['name'],slug=row['slug'],status=OrganizationStatus(row['status']),created_at=datetime.fromisoformat(row['created_at']),updated_at=datetime.fromisoformat(row['updated_at']),version=row['version'])
+    def get_tenant_id(self, organization_id):
+        row = self.conn.execute(
+            'SELECT tenant_id FROM organizations WHERE id=?',
+            (str(organization_id),),
+        ).fetchone()
+        if row is None or row['tenant_id'] is None:
+            return None
+        return UUID(row['tenant_id'])
+
     def get_by_id(self, organization_id): return self._row(self.conn.execute('SELECT * FROM organizations WHERE id=?',(str(organization_id),)).fetchone())
     def get_by_slug(self, slug): return self._row(self.conn.execute('SELECT * FROM organizations WHERE slug=?',(slug.strip().lower(),)).fetchone())
     def exists_by_slug(self, slug): return self.get_by_slug(slug) is not None
