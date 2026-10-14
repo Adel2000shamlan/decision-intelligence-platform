@@ -6,3 +6,7 @@ __pycache__/
 
 # Runtime SQLite database
 *.db
+
+# Python build artifacts
+build/
+dist/
