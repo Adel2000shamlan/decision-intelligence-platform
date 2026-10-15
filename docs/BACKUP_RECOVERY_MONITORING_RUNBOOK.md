@@ -8,7 +8,7 @@ This runbook is an operational checklist, not evidence that a live deployment ha
 - Store distinct high-entropy PostgreSQL and Redis credentials in the deployment secret store or an untracked .env file readable only by the deployment account (for example, mode 600). Never paste secrets into issues, logs, or Git.
 - DATABASE_URL must target the postgres service and match POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD; REDIS_URL must authenticate to redis.
 - Keep PostgreSQL and Redis ports off the public host interface. The API is bound to host loopback; expose it only through a configured TLS reverse proxy.
-- Verify Dockerfile.prod starts Uvicorn and Compose reports the API healthy. The health endpoint currently reports process/API availability only; it is not a database or Redis readiness check.
+- Verify Dockerfile.prod starts Uvicorn and Compose reports the API healthy. The `/api/v1/health` endpoint is liveness only. The `/api/v1/ready` endpoint checks PostgreSQL and Redis connectivity and is used by the Compose healthcheck; passing readiness does not prove business writes use durable storage.
 
 ## 2. PostgreSQL backup
 
@@ -73,4 +73,4 @@ Use an external uptime check through the TLS endpoint. Keep structured logs cent
 
 ## 7. Current limits
 
-Automated CI verifies code/tests against a temporary PostgreSQL service. It does not prove live backup scheduling, encryption, off-site retention, successful recovery of real data, external monitoring, TLS/reverse proxy, load capacity, or production security. Mark those items complete only with dated evidence from the target environment.
+Automated CI verifies code/tests against a temporary PostgreSQL service. The current API business endpoints still use the in-memory `app.core.store.store`; the PostgreSQL adapter and readiness check do not yet make business records durable. This is a release-blocking architecture gap: migrate API/domain repositories to PostgreSQL, add persistence/restart and tenant-isolation integration tests, and verify schema/migration compatibility before production. CI also does not prove live backup scheduling, encryption, off-site retention, successful recovery of real data, external monitoring, TLS/reverse proxy, load capacity, or production security. Mark those items complete only with dated evidence from the target environment.
