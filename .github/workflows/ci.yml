@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v114-01-clean-build-ci, v114-02-production-safety ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, v114-01-clean-build-ci ]
 
 jobs:
   test:
