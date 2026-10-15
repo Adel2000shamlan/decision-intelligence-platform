@@ -9,26 +9,37 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: decision_intelligence
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d decision_intelligence"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/decision_intelligence
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.24"
+          python-version: "3.12"
+          enable-cache: true
 
-    - name: Install Poetry and Pytest
-      run: |
-        python -m pip install --upgrade pip
-        pip install poetry pytest
+      - name: Install locked project and test dependencies
+        run: uv sync --locked --extra test
 
-    - name: Install all project dependencies
-      run: |
-        poetry config virtualenvs.create false
-        poetry install --no-interaction --no-root
-
-    - name: Run tests with pytest module
-      run: |
-        python -m pytest
+      - name: Run test suite
+        run: uv run --locked python -m pytest
