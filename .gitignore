@@ -3,3 +3,10 @@
 __pycache__/
 *.pyc
 *.egg-info/
+
+# Runtime SQLite database
+*.db
+
+# Python build artifacts
+build/
+dist/
