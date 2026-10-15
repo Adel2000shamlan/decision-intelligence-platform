@@ -10,3 +10,8 @@ __pycache__/
 # Python build artifacts
 build/
 dist/
+
+# Local environment files and secrets
+.env
+.env.*
+!.env.example
