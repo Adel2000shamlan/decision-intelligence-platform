@@ -3,13 +3,14 @@ from pydantic import BaseModel, Field
 from uuid import uuid4
 import os
 
-from app.core.store import store
 from app.infrastructure.database import Database
+from app.infrastructure.api_repository import ApiRecordRepository
 from app.modules.project.api.router import router as project_router
 from app.shared.domain.state_machine import transition
 from app.shared.domain.services import RiskScoreService
 
 router = APIRouter(prefix="/api/v1")
+records = ApiRecordRepository()
 
 
 class CreateModel(BaseModel):
@@ -69,29 +70,29 @@ def readiness():
 @router.post("/organizations")
 def organization(x: CreateModel):
     o = {"id": str(uuid4()), "name": x.name, "status": "active", "version": 1}
-    return store.add("organizations", o)
+    return records.add("organizations", o)
 
 
 @router.get("/organizations")
 def organizations():
-    return store.list("organizations")
+    return records.list("organizations")
 
 
 @router.post("/projects")
 def project(x: CreateModel):
     p = {"id": str(uuid4()), "name": x.name, "status": "draft", "version": 1}
-    return store.add("projects", p)
+    return records.add("projects", p)
 
 
 @router.post("/decisions")
 def decision(x: DecisionIn):
     d = {"id": str(uuid4()), **x.model_dump(), "status": "draft", "options": [], "scenarios": [], "risks": []}
-    return store.add("decisions", d)
+    return records.add("decisions", d)
 
 
 @router.post("/decisions/{id}/transition")
 def decision_transition(id: str, target: str):
-    d = store.get("decisions", id)
+    d = records.get("decisions", id)
     if not d:
         raise HTTPException(404, "decision not found")
     d["status"] = transition("decision", d["status"], target)
@@ -107,12 +108,12 @@ def risk(x: RiskIn):
         "score": RiskScoreService().calculate(x.probability, x.impact),
         "status": "identified",
     }
-    return store.add("risks", r)
+    return records.add("risks", r)
 
 
 @router.get("/risks")
 def risks():
-    return store.list("risks")
+    return records.list("risks")
 
 
 router.include_router(project_router)
