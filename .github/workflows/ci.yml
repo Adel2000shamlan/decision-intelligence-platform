@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, v114-01-clean-build-ci, v114-02-production-safety ]
+    branches: [ main, v114-01-clean-build-ci, v114-02-production-safety, v114-03-durable-api-persistence ]
   pull_request:
     branches: [ main, v114-01-clean-build-ci ]
 
