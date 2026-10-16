@@ -97,7 +97,7 @@ def decision_transition(id: str, target: str):
         raise HTTPException(404, "decision not found")
     d["status"] = transition("decision", d["status"], target)
     d["version"] += 1
-    return d
+    return records.update("decisions", d)
 
 
 @router.post("/risks")
