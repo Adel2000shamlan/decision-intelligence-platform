@@ -24,24 +24,38 @@ requires_postgres = pytest.mark.skipif(
 
 @requires_postgres
 def test_postgres_api_record_create_update_read_across_repository_instances():
-    repository = ApiRecordRepository(Database(DATABASE_URL))
+    database = Database(DATABASE_URL)
+    repository = ApiRecordRepository(database)
     record_id = str(uuid4())
-    original = {
-        "id": record_id,
-        "name": "integration-" + record_id,
-        "status": "active",
-        "version": 1,
-    }
-    repository.add("organizations", original)
 
-    independent_repository = ApiRecordRepository(Database(DATABASE_URL))
-    assert independent_repository.get("organizations", record_id) == original
+    try:
+        original = {
+            "id": record_id,
+            "name": "integration-" + record_id,
+            "status": "active",
+            "version": 1,
+        }
+        repository.add("organizations", original)
 
-    updated = {**original, "name": original["name"] + "-updated", "version": 2}
-    independent_repository.update("organizations", updated)
-    assert ApiRecordRepository(Database(DATABASE_URL)).get(
-        "organizations", record_id
-    ) == updated
+        independent_repository = ApiRecordRepository(Database(DATABASE_URL))
+        assert independent_repository.get("organizations", record_id) == original
+
+        updated = {
+            **original,
+            "name": original["name"] + "-updated",
+            "version": 2,
+        }
+        independent_repository.update("organizations", updated)
+
+        assert ApiRecordRepository(Database(DATABASE_URL)).get(
+            "organizations", record_id
+        ) == updated
+    finally:
+        with database.transaction() as connection:
+            connection.execute(
+                "DELETE FROM api_organizations WHERE id = %s",
+                (record_id,),
+            )
 
 
 @requires_postgres
