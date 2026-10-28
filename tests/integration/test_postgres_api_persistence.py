@@ -87,3 +87,60 @@ def test_postgres_repository_rejects_unknown_resource():
     repository = ApiRecordRepository(Database(DATABASE_URL))
     with pytest.raises(ValueError, match="unsupported API resource"):
         repository.list("users")
+
+@requires_postgres
+def test_postgres_api_records_are_isolated_by_tenant():
+    database = Database(DATABASE_URL)
+    repository = ApiRecordRepository(database)
+    tenant_a = str(uuid4())
+    tenant_b = str(uuid4())
+    record_a_id = str(uuid4())
+    record_b_id = str(uuid4())
+
+    record_a = {
+        "id": record_a_id,
+        "tenant_id": tenant_a,
+        "name": "tenant-a",
+        "status": "active",
+        "version": 1,
+    }
+    record_b = {
+        "id": record_b_id,
+        "tenant_id": tenant_b,
+        "name": "tenant-b",
+        "status": "active",
+        "version": 1,
+    }
+
+    try:
+        repository.add("organizations", record_a)
+        repository.add("organizations", record_b)
+
+        assert repository.list_for_tenant("organizations", tenant_a) == [record_a]
+        assert repository.get_for_tenant(
+            "organizations", record_b_id, tenant_a
+        ) is None
+
+        spoofed_record = {
+            **record_b,
+            "tenant_id": tenant_a,
+            "name": "cross-tenant-overwrite",
+        }
+        with pytest.raises(KeyError):
+            repository.update_for_tenant(
+                "organizations", spoofed_record, tenant_a
+            )
+
+        assert repository.get_for_tenant(
+            "organizations", record_b_id, tenant_b
+        ) == record_b
+    finally:
+        with database.transaction() as connection:
+            connection.execute(
+                "DELETE FROM api_organizations WHERE id = %s",
+                (record_a_id,),
+            )
+            connection.execute(
+                "DELETE FROM api_organizations WHERE id = %s",
+                (record_b_id,),
+            )

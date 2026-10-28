@@ -34,4 +34,55 @@ def test_password_reuse_blocked():
  uid=uuid4(); c=CredentialService(policy=PasswordSecurityPolicy(min_length=8)); c.register(uid,'Strong123!')
  with pytest.raises(PasswordPolicyError): c.change(uid,'Strong123!','Strong123!')
 def test_refresh_rotates_refresh_token():
- uid=uuid4(); t=TokenService(); a,r=t.issue(uid); new=t.refresh(r); assert t.validate(new).user_id==uid
+    uid=uuid4()
+    t=TokenService()
+    access, old_refresh = t.issue(uid)
+    original_session = t.validate(old_refresh, TokenType.REFRESH).session_id
+    result = t.refresh(old_refresh)
+    assert result["token_type"] == "bearer"
+    new_access = t.validate(result["access_token"])
+    new_refresh = t.validate(result["refresh_token"], TokenType.REFRESH)
+    assert new_access.user_id == uid
+    assert new_refresh.user_id == uid
+    assert new_access.session_id == original_session
+    assert new_refresh.session_id == original_session
+    with pytest.raises(TokenError):
+        t.validate(old_refresh, TokenType.REFRESH)
+
+
+def test_reset_repository_custom_ttl_and_expiry():
+    import hashlib
+    repo = ResetRepository()
+    uid = uuid4()
+    before = datetime.now(timezone.utc)
+    token = repo.issue(uid, ttl_minutes=1)
+    key = hashlib.sha256(token.encode()).hexdigest()
+    stored = repo.items[key]
+    assert stored[0] == uid
+    assert before + timedelta(seconds=59) <= stored[1] <= datetime.now(timezone.utc) + timedelta(seconds=61)
+    with pytest.raises(ValueError):
+        repo.issue(uid, ttl_minutes=0)
+    with pytest.raises(CredentialError):
+        repo.consume("not-a-valid-reset-token")
+    repo.items[key] = (stored[0], datetime.now(timezone.utc) - timedelta(seconds=1), stored[2])
+    with pytest.raises(CredentialError):
+        repo.consume(token)
+
+
+def test_password_reset_service_uses_security_policy_ttl():
+    uid = uuid4()
+    credentials = CredentialService(policy=PasswordSecurityPolicy(min_length=8))
+    repo = ResetRepository()
+    policy = SecurityPolicy(reset_minutes=3)
+    service = PasswordResetService(credentials, reset_repo=repo, policy=policy)
+    before = datetime.now(timezone.utc)
+    token = service.request(uid)
+    key = __import__("hashlib").sha256(token.encode()).hexdigest()
+    expires_at = repo.items[key][1]
+    assert before + timedelta(minutes=3) <= expires_at
+    assert expires_at <= datetime.now(timezone.utc) + timedelta(minutes=3, seconds=2)
+
+
+def test_security_policy_rejects_invalid_reset_ttl():
+    with pytest.raises(ValueError):
+        SecurityPolicy(reset_minutes=0).validate()

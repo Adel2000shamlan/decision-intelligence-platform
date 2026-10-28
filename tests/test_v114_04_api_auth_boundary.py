@@ -442,3 +442,134 @@ def test_refresh_uses_current_roles_after_role_change():
         json={"refresh_token": old_refresh},
     )
     assert replay_response.status_code == 401
+
+
+def test_refresh_rejects_user_after_all_tenant_roles_are_removed():
+    from app.modules.authentication.api import tokens
+
+    tenant_id = uuid4()
+    email = f"v114-refresh-no-role-{uuid4().hex}@example.com"
+    user = User.create(email, "V114 Refresh No Role Test")
+    users.save(user)
+    credentials.register(user.id, "StrongPass123!")
+    rbac.assign(user.id, "owner", tenant_id)
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": "StrongPass123!",
+            "tenant_id": str(tenant_id),
+        },
+    )
+    assert login_response.status_code == 200, login_response.text
+    old_refresh = login_response.json()["refresh_token"]
+
+    # Remove every role assigned to this user in the tenant.
+    rbac.assignments[(user.id, tenant_id)] = set()
+
+    refresh_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": old_refresh},
+    )
+    assert refresh_response.status_code == 403, refresh_response.text
+
+    # The rejected refresh token must not be usable again.
+    replay_response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": old_refresh},
+    )
+    assert replay_response.status_code == 401, replay_response.text
+
+    from app.modules.authentication.security import TokenError, TokenType
+
+    with __import__("pytest").raises(TokenError):
+        tokens.validate(old_refresh, TokenType.REFRESH)
+
+
+def test_invalid_decision_transition_preserves_status_and_version():
+    from app.api.app import records
+
+    tenant_id = uuid4()
+    headers = _security_test_headers("owner", tenant_id)
+
+    project = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_id),
+            "name": f"Transition Test {uuid4().hex}",
+        },
+        headers=headers,
+    )
+    assert project.status_code == 200, project.text
+
+    created = client.post(
+        "/api/v1/decisions",
+        json={
+            "project_id": project.json()["id"],
+            "title": "Invalid transition test",
+            "objective": "Preserve decision state",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200, created.text
+
+    decision_id = created.json()["id"]
+    before = records.get("decisions", decision_id)
+    assert before["status"] == "draft"
+    assert before["version"] == 1
+
+    response = client.post(
+        f"/api/v1/decisions/{decision_id}/transition",
+        params={"target": "approved"},
+        headers=headers,
+    )
+
+    assert response.status_code == 422, response.text
+
+    after = records.get("decisions", decision_id)
+    assert after["status"] == before["status"]
+    assert after["version"] == before["version"]
+
+
+def test_guarded_project_command_rejects_missing_tenant_on_mutation():
+    import pytest
+    from uuid import uuid4
+    from app.modules.project.application.commands import (
+        CreateProject,
+        ProjectCommandHandler,
+        RenameProject,
+    )
+    from app.modules.project.application.repository import ProjectRepositoryAdapter
+    from app.modules.project.application.tenant import ProjectTenantGuard
+    from app.modules.project.persistence.sqlite import SQLiteProjectRepository
+
+    backend = SQLiteProjectRepository()
+    try:
+        repository = ProjectRepositoryAdapter(backend)
+        handler = ProjectCommandHandler(
+            repository,
+            tenant_guard=ProjectTenantGuard(),
+        )
+        tenant_id = uuid4()
+        project = handler.create(
+            CreateProject(
+                organization_id=tenant_id,
+                name="Tenant Guard Regression",
+                tenant_id=tenant_id,
+            )
+        )
+
+        with pytest.raises(PermissionError):
+            handler.rename(
+                RenameProject(
+                    project_id=project.id,
+                    new_name="Should Be Rejected",
+                    tenant_id=None,
+                )
+            )
+
+        unchanged = repository.get_by_id(project.id, tenant_id)
+        assert unchanged.name == "Tenant Guard Regression"
+    finally:
+        backend.close()

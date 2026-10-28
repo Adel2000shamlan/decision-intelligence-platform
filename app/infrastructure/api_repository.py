@@ -93,6 +93,66 @@ class ApiRecordRepository:
                 raise KeyError(f"{kind} record not found")
         return record
 
+    def _tenant_expression(self) -> str:
+        if self.database.kind == "sqlite":
+            return "json_extract(payload, '$.tenant_id')"
+        return "(payload::jsonb ->> 'tenant_id')"
+
+    def list_for_tenant(
+        self, kind: str, tenant_id: str | UUID
+    ) -> list[dict[str, Any]]:
+        table = self._table(kind)
+        marker = self._placeholder()
+        tenant_expr = self._tenant_expression()
+        with self.database.transaction() as conn:
+            rows = conn.execute(
+                f"SELECT payload FROM {table} "
+                f"WHERE {tenant_expr}={marker} ORDER BY created_at,id",
+                (str(tenant_id),),
+            ).fetchall()
+        return [
+            json.loads(row["payload"] if isinstance(row, sqlite3.Row) else row[0])
+            for row in rows
+        ]
+
+    def get_for_tenant(
+        self, kind: str, record_id: str | UUID, tenant_id: str | UUID
+    ) -> dict[str, Any] | None:
+        table = self._table(kind)
+        marker = self._placeholder()
+        tenant_expr = self._tenant_expression()
+        with self.database.transaction() as conn:
+            row = conn.execute(
+                f"SELECT payload FROM {table} "
+                f"WHERE id={marker} AND {tenant_expr}={marker}",
+                (str(record_id), str(tenant_id)),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = row["payload"] if isinstance(row, sqlite3.Row) else row[0]
+        return json.loads(payload)
+
+    def update_for_tenant(
+        self, kind: str, record: dict[str, Any], tenant_id: str | UUID
+    ) -> dict[str, Any]:
+        if str(record.get("tenant_id")) != str(tenant_id):
+            raise KeyError(f"{kind} record not found")
+
+        table = self._table(kind)
+        marker = self._placeholder()
+        tenant_expr = self._tenant_expression()
+        now = datetime.now(timezone.utc).isoformat()
+        payload = json.dumps(record, separators=(",", ":"), ensure_ascii=False)
+        with self.database.transaction() as conn:
+            cur = conn.execute(
+                f"UPDATE {table} SET payload={marker},updated_at={marker} "
+                f"WHERE id={marker} AND {tenant_expr}={marker}",
+                (payload, now, str(record["id"]), str(tenant_id)),
+            )
+            if cur.rowcount != 1:
+                raise KeyError(f"{kind} record not found")
+        return record
+
     def _table(self, kind: str) -> str:
         try:
             return self._TABLES[kind]

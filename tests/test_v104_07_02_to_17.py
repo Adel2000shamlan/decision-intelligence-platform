@@ -2,6 +2,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.modules.authentication.api import users, credentials, rbac
+from app.modules.identity.domain.models import User
 from app.modules.project.persistence.sqlite import SQLiteProjectRepository,ProjectConcurrencyError,ProjectDuplicateError
 from app.modules.project.application.repository import ProjectRepositoryAdapter
 from app.modules.project.application.commands import ProjectCommandHandler,CreateProject,RenameProject,TransitionProject
@@ -37,7 +39,30 @@ def test_validation_rejects_bad_input():
  with pytest.raises(ValueError): ProjectApplicationFacade(c,q).create(uuid4(),'')
 
 def test_api_contract():
- client=TestClient(app); o=uuid4(); res=client.post('/api/v1/projects',json={'organization_id':str(o),'name':'API Project'}); assert res.status_code==200; assert res.json()['name']=='API Project'
+    client = TestClient(app)
+    email = f"project-{uuid4().hex}@example.com"
+    user = User.create(email, "Project API Test User")
+    users.save(user)
+    credentials.register(user.id, "StrongPass123!")
+    o = uuid4()
+    rbac.assign(user.id, "owner", o)
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": "StrongPass123!",
+            "tenant_id": str(o),
+        },
+    )
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    res = client.post(
+        "/api/v1/projects",
+        json={"organization_id": str(o), "name": "API Project"},
+        headers=headers,
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["name"] == "API Project"
 
 def test_regression_all_project_core_imports():
  from app.modules.project.domain.models import Project
@@ -62,3 +87,25 @@ def test_persistence_schema_indexes_and_transaction_rollback():
     indexes=[x['name'] for x in b.conn.execute('PRAGMA index_list(projects)').fetchall()]
     assert any('org' in x for x in indexes)
     b.begin(); b.conn.execute("INSERT INTO projects VALUES(?,?,?,?,?,?,?,?)",(str(uuid4()),str(uuid4()),'Temp','temp','draft','2026-01-01T00:00:00+00:00','2026-01-01T00:00:00+00:00',1)); b.rollback(); assert q.list(uuid4())==[]
+
+
+def test_project_authorization_denies_empty_permissions_by_default():
+    from app.modules.project.application.authorization import (
+        ProjectAuthorizationAdapter,
+        ProjectAuthorizationError,
+    )
+
+    adapter = ProjectAuthorizationAdapter()
+    with pytest.raises(ProjectAuthorizationError):
+        adapter.require("create", uuid4(), uuid4())
+
+
+def test_project_authorization_denies_ungranted_action():
+    from app.modules.project.application.authorization import (
+        ProjectAuthorizationAdapter,
+        ProjectAuthorizationError,
+    )
+
+    adapter = ProjectAuthorizationAdapter({"project:create"})
+    with pytest.raises(ProjectAuthorizationError):
+        adapter.require("update", uuid4(), uuid4())

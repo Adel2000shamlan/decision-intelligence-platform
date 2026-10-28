@@ -3,6 +3,7 @@ from uuid import UUID
 from app.shared.domain.errors import EntityNotFound
 from app.modules.project.domain.models import Project, ProjectStatus
 from app.modules.project.domain.services import ProjectDomainService
+from app.modules.project.application.tenant import ProjectTenantGuard
 
 @dataclass(frozen=True)
 class CreateProject: organization_id: UUID; name: str; actor_id: UUID|None=None; tenant_id: UUID|None=None
@@ -33,8 +34,17 @@ class ProjectCommandHandler:
         try: return self.repository.save(p,expected)
         except TypeError: return self.repository.save(p)
     def _access(self,p,tenant):
-        if self.tenant_guard: self.tenant_guard.assert_access(p,tenant)
+        if tenant is None:
+            if self.tenant_guard is not None:
+                raise PermissionError("tenant context required")
+            return
+        guard = self.tenant_guard or ProjectTenantGuard
+        guard.assert_access(p,tenant)
     def create(self,c):
+        if self.tenant_guard is not None and c.tenant_id is None:
+            raise PermissionError("tenant context required")
+        if c.tenant_id is not None and c.organization_id != c.tenant_id:
+            raise PermissionError("project tenant boundary violation")
         if self.organization_repository is not None:
             org=self.organization_repository.get_by_id(c.organization_id)
             if org is None: raise EntityNotFound(f'organization not found: {c.organization_id}')
@@ -44,7 +54,7 @@ class ProjectCommandHandler:
         try: p=self.repository.get_by_id(project_id,tenant)
         except TypeError: p=self.repository.get_by_id(project_id)
         if p is None: raise EntityNotFound(f'project not found: {project_id}')
-        if tenant is not None: self._access(p,tenant)
+        self._access(p,tenant)
         return p
     def rename(self,c):
         p=self._get(c.project_id,c.tenant_id); old=p.version; p.rename(c.new_name,c.actor_id); self._save(p,c.expected_version if c.expected_version is not None else old); self._commit(); self._post(p,c.actor_id,'rename'); return p

@@ -6,6 +6,7 @@ from hashlib import pbkdf2_hmac
 from hmac import compare_digest
 import base64, hashlib, secrets
 from typing import Iterable
+from threading import Lock, RLock
 from uuid import UUID, uuid4
 
 class SecurityError(Exception): pass
@@ -93,40 +94,135 @@ class CredentialService:
         c=self.repo.revoke_user(user_id); self.audit.emit(SecurityEvent('credential.revoked',user_id,actor_id,correlation_id or uuid4())); return c
 
 class ResetRepository:
-    def __init__(self): self.items={}
-    def issue(self,user_id,ttl_minutes=15):
-        raw=secrets.token_urlsafe(32); key=hashlib.sha256(raw.encode()).hexdigest(); self.items[key]=(user_id,datetime.now(timezone.utc)+timedelta(minutes=ttl_minutes),False); return raw
-    def consume(self,raw):
-        key=hashlib.sha256(raw.encode()).hexdigest(); item=self.items.get(key)
-        if not item or item[2] or item[1] < datetime.now(timezone.utc): raise CredentialError('invalid or expired reset token')
-        self.items[key]=(item[0],item[1],True); return item[0]
+    def __init__(self):
+        self.items = {}
+        self._lock = Lock()
+
+    def issue(self, user_id, ttl_minutes=15):
+        if (
+            isinstance(ttl_minutes, bool)
+            or not isinstance(ttl_minutes, (int, float))
+            or ttl_minutes <= 0
+        ):
+            raise ValueError("reset token TTL must be positive")
+
+        raw = secrets.token_urlsafe(32)
+        key = hashlib.sha256(raw.encode()).hexdigest()
+        self.items[key] = (
+            user_id,
+            datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes),
+            False,
+        )
+        return raw
+
+    def lookup(self, raw):
+        key = hashlib.sha256(raw.encode()).hexdigest()
+        item = self.items.get(key)
+        if (
+            not item
+            or item[2]
+            or item[1] < datetime.now(timezone.utc)
+        ):
+            raise CredentialError("invalid or expired reset token")
+        return item[0]
+
+    def consume(self, raw):
+        key = hashlib.sha256(raw.encode()).hexdigest()
+        with self._lock:
+            item = self.items.get(key)
+            if (
+                not item
+                or item[2]
+                or item[1] < datetime.now(timezone.utc)
+            ):
+                raise CredentialError("invalid or expired reset token")
+
+            self.items[key] = (item[0], item[1], True)
+            return item[0]
+
 
 class TokenType(str,Enum): ACCESS='access'; REFRESH='refresh'
 @dataclass(frozen=True)
 class TokenRecord:
     token_id:UUID; user_id:UUID; token_type:TokenType; issued_at:datetime; expires_at:datetime; session_id:UUID; revoked:bool=False; tenant_id:UUID|None=None; roles:tuple[str,...]=()
 class TokenService:
-    def __init__(self,access_minutes=15,refresh_days=30): self.tokens={}; self.access_minutes=access_minutes; self.refresh_days=refresh_days
-    def issue(self,user_id,tenant_id=None,roles=()):
-        sid=uuid4(); now=datetime.now(timezone.utc); out=[]
-        for typ,delta in ((TokenType.ACCESS,timedelta(minutes=self.access_minutes)),(TokenType.REFRESH,timedelta(days=self.refresh_days))):
-            raw=secrets.token_urlsafe(48); tid=uuid4(); self.tokens[hashlib.sha256(raw.encode()).hexdigest()]=TokenRecord(tid,user_id,typ,now,now+delta,sid,False,tenant_id,tuple(roles)); out.append(raw)
-        return out[0],out[1]
-    def validate(self,raw,expected=TokenType.ACCESS):
-        r=self.tokens.get(hashlib.sha256(raw.encode()).hexdigest()); now=datetime.now(timezone.utc)
-        if not r or r.revoked or r.expires_at<=now or r.token_type is not expected: raise TokenError('invalid token')
-        return r
-    def refresh(self,raw):
-        r=self.validate(raw,TokenType.REFRESH)
-        self.revoke(raw)
-        return self.issue(r.user_id,r.tenant_id,r.roles)[0]
+    def __init__(self, access_minutes=15, refresh_days=30):
+        self.tokens = {}
+        self._lock = RLock()
+        self.access_minutes = access_minutes
+        self.refresh_days = refresh_days
 
-    def revoke(self,raw):
-        k=hashlib.sha256(raw.encode()).hexdigest(); r=self.tokens.get(k)
-        if r: self.tokens[k]=TokenRecord(r.token_id,r.user_id,r.token_type,r.issued_at,r.expires_at,r.session_id,True,r.tenant_id,r.roles)
-    def revoke_session(self,session_id):
-        for k,r in list(self.tokens.items()):
-            if r.session_id==session_id: self.tokens[k]=TokenRecord(r.token_id,r.user_id,r.token_type,r.issued_at,r.expires_at,r.session_id,True,r.tenant_id,r.roles)
+    def issue(self, user_id, tenant_id=None, roles=(), session_id=None):
+        with self._lock:
+            sid = session_id or uuid4()
+            now = datetime.now(timezone.utc)
+            out = []
+            for typ, delta in (
+                (TokenType.ACCESS, timedelta(minutes=self.access_minutes)),
+                (TokenType.REFRESH, timedelta(days=self.refresh_days)),
+            ):
+                raw = secrets.token_urlsafe(48)
+                tid = uuid4()
+                key = hashlib.sha256(raw.encode()).hexdigest()
+                self.tokens[key] = TokenRecord(
+                    tid, user_id, typ, now, now + delta, sid,
+                    False, tenant_id, tuple(roles),
+                )
+                out.append(raw)
+            return out[0], out[1]
+
+    def validate(self, raw, expected=TokenType.ACCESS):
+        with self._lock:
+            r = self.tokens.get(hashlib.sha256(raw.encode()).hexdigest())
+            now = datetime.now(timezone.utc)
+            if not r or r.revoked or r.expires_at <= now or r.token_type is not expected:
+                raise TokenError("invalid token")
+            return r
+
+    def refresh(self, raw, roles=None):
+        with self._lock:
+            r = self.validate(raw, TokenType.REFRESH)
+            self.revoke(raw)
+            effective_roles = r.roles if roles is None else roles
+            access_token, refresh_token = self.issue(
+                r.user_id,
+                r.tenant_id,
+                effective_roles,
+                session_id=r.session_id,
+            )
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            }
+
+    def revoke(self, raw):
+        with self._lock:
+            key = hashlib.sha256(raw.encode()).hexdigest()
+            r = self.tokens.get(key)
+            if r:
+                self.tokens[key] = TokenRecord(
+                    r.token_id, r.user_id, r.token_type, r.issued_at,
+                    r.expires_at, r.session_id, True, r.tenant_id, r.roles,
+                )
+
+    def revoke_user(self, user_id):
+        with self._lock:
+            for key, r in list(self.tokens.items()):
+                if r.user_id == user_id:
+                    self.tokens[key] = TokenRecord(
+                        r.token_id, r.user_id, r.token_type, r.issued_at,
+                        r.expires_at, r.session_id, True, r.tenant_id, r.roles,
+                    )
+
+    def revoke_session(self, session_id):
+        with self._lock:
+            for key, r in list(self.tokens.items()):
+                if r.session_id == session_id:
+                    self.tokens[key] = TokenRecord(
+                        r.token_id, r.user_id, r.token_type, r.issued_at,
+                        r.expires_at, r.session_id, True, r.tenant_id, r.roles,
+                    )
 
 @dataclass(frozen=True)
 class Role: name:str; permissions:frozenset[str]
@@ -155,18 +251,53 @@ class AuthenticationService:
         a,r=self.tokens.issue(user.id,tenant_id,roles); rec=self.tokens.validate(a); return AuthSession(user.id,tenant_id,rec.session_id,roles,datetime.now(timezone.utc)),a,r
 
 class PasswordResetService:
-    def __init__(self,credentials,reset_repo=None,audit=None): self.credentials=credentials; self.reset=reset_repo or ResetRepository(); self.audit=audit or credentials.audit
+    def __init__(self,credentials,reset_repo=None,audit=None,tokens=None,policy=None):
+        self.credentials=credentials
+        self.reset=reset_repo or ResetRepository()
+        self.audit=audit or credentials.audit
+        self.tokens=tokens
+        self.policy=policy or SecurityPolicy()
+        self.policy.validate()
     def request(self,user_id):
-        return self.reset.issue(user_id)
-    def consume(self,token,new_password,actor_id=None):
-        uid=self.reset.consume(token); c=self.credentials.repo.active(uid)
+        return self.reset.issue(user_id,ttl_minutes=self.policy.reset_minutes)
+    def consume(self, token, new_password, actor_id=None):
+        # Validate and prepare the password change before mutating state.
+        uid = self.reset.lookup(token)
+        c = self.credentials.repo.active(uid)
+
+        self.credentials.policy.validate(new_password)
+        if c and any(
+            self.credentials.hasher.verify(new_password, old)
+            for old in self.credentials.history.get(uid, [])
+        ):
+            raise PasswordPolicyError("password reuse is forbidden")
+
+        # Hash before revoking sessions so hashing failures leave state unchanged.
+        new_hash = self.credentials.hasher.hash(new_password) if c else None
+
+        # Revoke sessions before consuming the reset token or changing credentials.
+        # If revocation fails, the password and reset token remain unchanged.
+        if self.tokens:
+            self.tokens.revoke_user(uid)
+
+        consumed_uid = self.reset.consume(token)
+        if consumed_uid != uid:
+            raise CredentialError("invalid reset token")
+
         if c:
-            self.credentials.policy.validate(new_password)
-            if any(self.credentials.hasher.verify(new_password, old) for old in self.credentials.history.get(uid,[])): raise PasswordPolicyError('password reuse is forbidden')
-            c.password_hash=self.credentials.hasher.hash(new_password); c.version+=1; c.updated_at=datetime.now(timezone.utc)
-            self.credentials.history.setdefault(uid,[]).append(c.password_hash); self.credentials.history[uid]=self.credentials.history[uid][-5:]
-            self.audit.emit(SecurityEvent('password.reset_completed',uid,actor_id,uuid4())); return uid
-        self.credentials.register(uid,new_password,actor_id); self.audit.emit(SecurityEvent('password.reset_completed',uid,actor_id,uuid4())); return uid
+            c.password_hash = new_hash
+            c.version += 1
+            c.updated_at = datetime.now(timezone.utc)
+            self.credentials.history.setdefault(uid, []).append(new_hash)
+            self.credentials.history[uid] = self.credentials.history[uid][-5:]
+        else:
+            self.credentials.register(uid, new_password, actor_id)
+
+        self.audit.emit(
+            SecurityEvent("password.reset_completed", uid, actor_id, uuid4())
+        )
+        return uid
+
 
 class RecoveryService:
     def __init__(self,credentials,reset_repo=None,audit=None): self.credentials=credentials; self.reset=reset_repo or ResetRepository(); self.audit=audit or credentials.audit
