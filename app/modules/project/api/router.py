@@ -9,13 +9,22 @@ from app.modules.project.application.queries import ProjectQueryService
 from app.modules.project.application.repository import ProjectRepositoryAdapter
 from app.modules.project.application.service import ProjectApplicationFacade
 from app.modules.project.application.tenant import ProjectTenantGuard
+from app.infrastructure.config import settings
 from app.modules.project.persistence.sqlite import SQLiteProjectRepository
+from app.modules.project.persistence.postgres import PostgreSQLProjectRepository
 from app.shared.domain.errors import EntityNotFound
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
-_repo = ProjectRepositoryAdapter(SQLiteProjectRepository())
+_database_url = settings.database_url
+if _database_url.startswith(("postgresql://", "postgres://")):
+    _backend = PostgreSQLProjectRepository(_database_url)
+else:
+    _sqlite_path = _database_url.removeprefix("sqlite:///")
+    _backend = SQLiteProjectRepository(path=_sqlite_path)
+
+_repo = ProjectRepositoryAdapter(_backend)
 _app = ProjectApplicationFacade(
     ProjectCommandHandler(_repo, tenant_guard=ProjectTenantGuard()),
     ProjectQueryService(_repo),
