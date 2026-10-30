@@ -515,7 +515,7 @@ def test_invalid_decision_transition_preserves_status_and_version():
     assert created.status_code == 200, created.text
 
     decision_id = created.json()["id"]
-    before = records.get("decisions", decision_id)
+    before = records.get_for_tenant("decisions", decision_id, tenant_id)
     assert before["status"] == "draft"
     assert before["version"] == 1
 
@@ -527,7 +527,7 @@ def test_invalid_decision_transition_preserves_status_and_version():
 
     assert response.status_code == 422, response.text
 
-    after = records.get("decisions", decision_id)
+    after = records.get_for_tenant("decisions", decision_id, tenant_id)
     assert after["status"] == before["status"]
     assert after["version"] == before["version"]
 
@@ -699,3 +699,59 @@ def test_invalid_project_expected_version_returns_400():
     )
 
     assert response.status_code == 400, response.text
+
+
+def test_other_tenant_cannot_transition_foreign_decision():
+    from app.api.app import records
+
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+
+    headers_a = _security_test_headers("owner", tenant_a)
+    headers_b = _security_test_headers("owner", tenant_b)
+
+    project = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_a),
+            "name": f"Decision Isolation {uuid4().hex}",
+        },
+        headers=headers_a,
+    )
+    assert project.status_code == 200, project.text
+
+    created = client.post(
+        "/api/v1/decisions",
+        json={
+            "project_id": project.json()["id"],
+            "title": f"Private Decision {uuid4().hex}",
+            "objective": "Verify tenant isolation",
+        },
+        headers=headers_a,
+    )
+    assert created.status_code == 200, created.text
+
+    decision_id = created.json()["id"]
+    before = records.get_for_tenant(
+        "decisions", decision_id, tenant_a
+    )
+    assert before is not None
+    assert before["status"] == "draft"
+    assert before["version"] == 1
+
+    response = client.post(
+        f"/api/v1/decisions/{decision_id}/transition",
+        params={"target": "approved"},
+        headers=headers_b,
+    )
+
+    assert response.status_code == 404, response.text
+
+    after = records.get_for_tenant(
+        "decisions", decision_id, tenant_a
+    )
+    assert after == before
+
+    assert records.get_for_tenant(
+        "decisions", decision_id, tenant_b
+    ) is None
