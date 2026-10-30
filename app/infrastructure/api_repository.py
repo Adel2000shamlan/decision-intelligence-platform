@@ -1,8 +1,7 @@
 """Durable persistence for the legacy API resources.
 
 This adapter intentionally uses api_* tables to avoid silently changing the
-existing domain migration schema. Tenant scoping is a required follow-up before
-these endpoints are considered production-safe.
+existing domain migration schema. Tenant-scoped repository operations are provided for production API access. Unscoped methods remain available for internal compatibility and must not be used by tenant-facing routes.
 """
 from __future__ import annotations
 
