@@ -755,3 +755,68 @@ def test_other_tenant_cannot_transition_foreign_decision():
     assert records.get_for_tenant(
         "decisions", decision_id, tenant_b
     ) is None
+
+
+def test_api_creation_ignores_spoofed_tenant_id():
+    from app.api.app import records
+
+    tenant_a = uuid4()
+    tenant_b = uuid4()
+    headers = _security_test_headers("owner", tenant_a)
+
+    organization = client.post(
+        "/api/v1/organizations",
+        json={
+            "name": f"Tenant Test {uuid4().hex}",
+            "tenant_id": str(tenant_b),
+        },
+        headers=headers,
+    )
+    assert organization.status_code == 200, organization.text
+    assert organization.json()["tenant_id"] == str(tenant_a)
+
+    project = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_a),
+            "name": f"Tenant Test Project {uuid4().hex}",
+        },
+        headers=headers,
+    )
+    assert project.status_code == 200, project.text
+
+    decision = client.post(
+        "/api/v1/decisions",
+        json={
+            "project_id": project.json()["id"],
+            "title": "Tenant isolation decision",
+            "objective": "Verify server-controlled tenant",
+            "tenant_id": str(tenant_b),
+        },
+        headers=headers,
+    )
+    assert decision.status_code == 200, decision.text
+    assert decision.json()["tenant_id"] == str(tenant_a)
+
+    risk = client.post(
+        "/api/v1/risks",
+        json={
+            "project_id": project.json()["id"],
+            "title": "Tenant isolation risk",
+            "probability": 0.5,
+            "impact": 10,
+            "tenant_id": str(tenant_b),
+        },
+        headers=headers,
+    )
+    assert risk.status_code == 200, risk.text
+    assert risk.json()["tenant_id"] == str(tenant_a)
+
+    for kind, response in (
+        ("organizations", organization),
+        ("decisions", decision),
+        ("risks", risk),
+    ):
+        record_id = response.json()["id"]
+        assert records.get_for_tenant(kind, record_id, tenant_a) is not None
+        assert records.get_for_tenant(kind, record_id, tenant_b) is None
