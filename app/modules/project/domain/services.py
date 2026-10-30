@@ -1,7 +1,7 @@
 from __future__ import annotations
 from uuid import UUID
 from app.shared.domain.services import DomainServiceBase, ServiceResult
-from app.shared.domain.errors import BusinessRuleViolation
+from app.shared.domain.errors import BusinessRuleViolation, ProjectNameAlreadyExists
 from app.modules.organization.domain.models import Organization, OrganizationStatus
 from .models import Project, ProjectStatus
 
@@ -28,7 +28,7 @@ class ProjectDomainService(DomainServiceBase):
         self.ensure_version(project, expected_version)
         if project.status.value == 'archived': raise BusinessRuleViolation('archived project cannot be renamed')
         if repository.exists_by_name(project.organization_id, new_name.strip()) and new_name.strip() != project.name:
-            raise BusinessRuleViolation(f'project name already exists in organization: {new_name.strip()}')
+            raise ProjectNameAlreadyExists(f'project name already exists in organization: {new_name.strip()}')
         project.rename(new_name, actor_id); repository.save(project); return self.collect(project)
 
     @staticmethod
@@ -38,7 +38,7 @@ class ProjectDomainService(DomainServiceBase):
     @staticmethod
     def ensure_unique_name(repository, project: Project) -> None:
         if repository.exists_by_name(project.organization_id, project.name):
-            raise BusinessRuleViolation(f'project name already exists in organization: {project.name}')
+            raise ProjectNameAlreadyExists(f'project name already exists in organization: {project.name}')
     def _transition(self, repository, project_id, target, actor_id, expected_version):
         project = self.require(repository.get_by_id(project_id), 'project', project_id)
         self.ensure_version(project, expected_version)

@@ -10,9 +10,9 @@ from app.modules.project.application.repository import ProjectRepositoryAdapter
 from app.modules.project.application.service import ProjectApplicationFacade
 from app.modules.project.application.tenant import ProjectTenantGuard
 from app.infrastructure.config import settings
-from app.modules.project.persistence.sqlite import SQLiteProjectRepository
-from app.modules.project.persistence.postgres import PostgreSQLProjectRepository
-from app.shared.domain.errors import EntityNotFound
+from app.modules.project.persistence.sqlite import SQLiteProjectRepository, ProjectConcurrencyError as SQLiteProjectConcurrencyError, ProjectDuplicateError as SQLiteProjectDuplicateError
+from app.modules.project.persistence.postgres import PostgreSQLProjectRepository, ProjectConcurrencyError as PostgreSQLProjectConcurrencyError, ProjectDuplicateError as PostgreSQLProjectDuplicateError
+from app.shared.domain.errors import EntityNotFound, ProjectNameAlreadyExists
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -81,6 +81,8 @@ def create(
         raise
     except PermissionError as exc:
         raise HTTPException(403, "Tenant boundary violation") from exc
+    except (ProjectNameAlreadyExists, SQLiteProjectDuplicateError, PostgreSQLProjectDuplicateError) as exc:
+        raise HTTPException(409, "Project name already exists") from exc
     except (ValueError, TypeError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -133,6 +135,10 @@ def rename(
         raise HTTPException(404, "Project not found") from exc
     except PermissionError as exc:
         raise HTTPException(403, "Tenant boundary violation") from exc
+    except (ProjectNameAlreadyExists, SQLiteProjectDuplicateError, PostgreSQLProjectDuplicateError) as exc:
+        raise HTTPException(409, "Project name already exists") from exc
+    except (SQLiteProjectConcurrencyError, PostgreSQLProjectConcurrencyError) as exc:
+        raise HTTPException(409, "Project version conflict; reload and retry") from exc
     except (ValueError, TypeError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -155,5 +161,7 @@ def transition(
         raise HTTPException(404, "Project not found") from exc
     except PermissionError as exc:
         raise HTTPException(403, "Tenant boundary violation") from exc
+    except (SQLiteProjectConcurrencyError, PostgreSQLProjectConcurrencyError) as exc:
+        raise HTTPException(409, "Project version conflict; reload and retry") from exc
     except (ValueError, TypeError) as exc:
         raise HTTPException(400, str(exc)) from exc

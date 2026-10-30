@@ -5,5 +5,6 @@ class DomainError(Exception):
 class InvalidDomainData(DomainError): pass
 class InvalidStateTransition(DomainError): pass
 class BusinessRuleViolation(DomainError): pass
+class ProjectNameAlreadyExists(BusinessRuleViolation): pass
 class EntityNotFound(DomainError): pass
 class UnauthorizedDomainAction(DomainError): pass

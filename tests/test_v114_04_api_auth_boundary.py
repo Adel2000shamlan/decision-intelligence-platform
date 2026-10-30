@@ -573,3 +573,129 @@ def test_guarded_project_command_rejects_missing_tenant_on_mutation():
         assert unchanged.name == "Tenant Guard Regression"
     finally:
         backend.close()
+
+
+def test_duplicate_project_creation_returns_409():
+    tenant_id = uuid4()
+    headers = _security_test_headers("owner", tenant_id)
+    payload = {
+        "organization_id": str(tenant_id),
+        "name": f"Duplicate Project {uuid4().hex}",
+    }
+
+    first = client.post("/api/v1/projects", json=payload, headers=headers)
+    assert first.status_code == 200, first.text
+
+    duplicate = client.post("/api/v1/projects", json=payload, headers=headers)
+    assert duplicate.status_code == 409, duplicate.text
+    assert duplicate.json()["detail"] == "Project name already exists"
+
+
+def test_duplicate_project_rename_returns_409():
+    tenant_id = uuid4()
+    headers = _security_test_headers("owner", tenant_id)
+
+    first = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_id),
+            "name": f"First Project {uuid4().hex}",
+        },
+        headers=headers,
+    )
+    second = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_id),
+            "name": f"Second Project {uuid4().hex}",
+        },
+        headers=headers,
+    )
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+
+    response = client.patch(
+        f"/api/v1/projects/{first.json()['id']}",
+        json={
+            "name": second.json()["name"],
+            "expected_version": first.json()["version"],
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"] == "Project name already exists"
+
+
+def test_stale_project_version_returns_409():
+    tenant_id = uuid4()
+    headers = _security_test_headers("owner", tenant_id)
+
+    created = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_id),
+            "name": f"Version Project {uuid4().hex}",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200, created.text
+
+    project_id = created.json()["id"]
+    original_version = created.json()["version"]
+
+    updated = client.patch(
+        f"/api/v1/projects/{project_id}",
+        json={
+            "name": f"Updated Project {uuid4().hex}",
+            "expected_version": original_version,
+        },
+        headers=headers,
+    )
+    assert updated.status_code == 200, updated.text
+
+    stale = client.patch(
+        f"/api/v1/projects/{project_id}",
+        json={
+            "name": f"Stale Update {uuid4().hex}",
+            "expected_version": original_version,
+        },
+        headers=headers,
+    )
+
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"] == "Project version conflict; reload and retry"
+
+    current = client.get(
+        f"/api/v1/projects/{project_id}",
+        headers=headers,
+    )
+    assert current.status_code == 200, current.text
+    assert current.json()["name"] == updated.json()["name"]
+    assert current.json()["version"] == updated.json()["version"]
+
+
+def test_invalid_project_expected_version_returns_400():
+    tenant_id = uuid4()
+    headers = _security_test_headers("owner", tenant_id)
+
+    created = client.post(
+        "/api/v1/projects",
+        json={
+            "organization_id": str(tenant_id),
+            "name": f"Invalid Version Project {uuid4().hex}",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 200, created.text
+
+    response = client.patch(
+        f"/api/v1/projects/{created.json()['id']}",
+        json={
+            "name": f"Invalid Version Update {uuid4().hex}",
+            "expected_version": 0,
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 400, response.text
